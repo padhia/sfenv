@@ -3,15 +3,15 @@ import mill.scalalib._
 import mill.scalalib.publish._
 
 object Ver {
-  val circeParser = "0.14.6"
-  val circeYaml   = "0.15.1"
+  val circeParser = "0.14.10"
+  val circeYaml   = "0.16.0"
   val decline     = "2.4.1"
-  val fs2         = "3.9.3"
-  val munit       = "1.0.0-M10"
+  val fs2         = "3.11.0"
+  val munit       = "1.0.2"
 }
 
 object sfenv extends RootModule with ScalaModule with PublishModule {
-  def scalaVersion   = "3.3.1"
+  def scalaVersion   = "3.3.4"
   def publishVersion = "0.1.0"
   def scalacOptions  = Seq("-deprecation", "-Wunused:all", "-release", "11")
   def artifactName   = "sfenv"
