@@ -1,7 +1,7 @@
 package sfenv
 package rules
 
-import io.circe.*
+import fabric.rw.RW
 
 import cats.syntax.all.*
 
@@ -18,7 +18,7 @@ case class Rules(
     roles: Option[Map[String, Role]],
     apps: Option[Map[String, UserId]],
     users: Option[Map[String, UserId]]
-) derives Decoder
+) derives RW
 
 object Rules:
   extension (r: Rules)

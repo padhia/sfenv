@@ -1,7 +1,9 @@
 package sfenv
 package envr
 
-import io.circe.*
+import fabric.*
+import fabric.rw.*
+import rules.Util.*
 
 enum SchWh:
   case Schema(db: String, sch: String)
@@ -12,9 +14,10 @@ enum SchWh:
     case Warehouse(wh)   => wh
 
 object SchWh:
-  given KeyDecoder[SchWh] with
-    def apply(x: String) =
-      x.split("\\.") match
-        case Array(db, sch) => Some(Schema(db, sch))
-        case Array(wh)      => Some(Warehouse(wh))
-        case _              => None
+  def apply(x: String): Either[String, SchWh] =
+    x.split("\\.") match
+      case Array(db, sch) => Right(Schema(db, sch))
+      case Array(wh)      => Right(Warehouse(wh))
+      case _              => Left(s"$x is not valid Schema or Wahrehouse name")
+
+  given RW[SchWh] = RW.string(_.toString(), SchWh(_).value)

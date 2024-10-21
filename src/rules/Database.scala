@@ -1,7 +1,8 @@
 package sfenv
 package rules
 
-import io.circe.*
+import fabric.rw.RW
+import fabric.*
 
 import envr.{ObjMeta, Props}
 
@@ -17,7 +18,10 @@ case class Database(x: Database.Aux, props: Props):
     )
 
 object Database:
-  case class Aux(transient: Option[Boolean], schemas: Option[Map[String, Schema]], tags: Tags, comment: Comment) derives Decoder
+  case class Aux(transient: Option[Boolean], schemas: Option[Map[String, Schema]], tags: Tags, comment: Comment) derives RW
 
-  given Decoder[Database] with
-    def apply(c: HCursor) = summon[Decoder[Aux]](c).map(Database(_, Util.fromCursor[Aux](c)))
+  // def apply(doc: Json) =
+  //   RW.from
+  given RW[Database] = RW.from(
+    summon[RW[Aux]].read(x)
+    // def apply(c: HCursor) = summon[Decoder[Aux]](c).map(Database(_, Util.fromCursor[Aux](c)))

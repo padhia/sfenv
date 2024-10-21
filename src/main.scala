@@ -1,8 +1,5 @@
 package sfenv
 
-import io.circe.{Decoder, Error}
-import io.circe.yaml.parser.parse
-
 import fs2.Stream
 import fs2.io.file.{Files, Path}
 import fs2.io.stdinUtf8

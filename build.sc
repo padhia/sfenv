@@ -3,11 +3,10 @@ import mill.scalalib._
 import mill.scalalib.publish._
 
 object Ver {
-  val circeParser = "0.14.10"
-  val circeYaml   = "0.16.0"
   val decline     = "2.4.1"
   val fs2         = "3.11.0"
   val munit       = "1.0.2"
+  val fabric      = "1.15.3"
 }
 
 object sfenv extends RootModule with ScalaModule with PublishModule {
@@ -19,8 +18,7 @@ object sfenv extends RootModule with ScalaModule with PublishModule {
 
   def ivyDeps = Agg(
     ivy"com.monovore::decline-effect:${Ver.decline}",
-    ivy"io.circe::circe-parser:${Ver.circeParser}",
-    ivy"io.circe::circe-yaml:${Ver.circeYaml}",
+    ivy"org.typelevel::fabric-io:${Ver.fabric}",
     ivy"co.fs2::fs2-io:${Ver.fs2}"
   )
 

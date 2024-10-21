@@ -1,14 +1,13 @@
 package sfenv
 package rules
 
-import io.circe.*
-
 import envr.{Props, RoleName, SchWh}
+import fabric.rw.RW
 
 type SchWhRoles = Map[SchWh, String]
 
 case class Role(acc_roles: Option[SchWhRoles], env_acc_roles: Option[Map[EnvName, SchWhRoles]], tags: Tags, comment: Comment)
-    derives Decoder:
+    derives RW:
 
   def resolve(name: String)(using n: NameResolver) =
     def mkRole(schWh: SchWh, acc: String) =
