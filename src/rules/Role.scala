@@ -2,7 +2,7 @@ package sfenv
 package rules
 
 import envr.{Props, RoleName, SchWh}
-import fabric.rw.RW
+import fabric.rw.*
 
 type SchWhRoles = Map[SchWh, String]
 

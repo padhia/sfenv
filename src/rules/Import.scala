@@ -1,7 +1,7 @@
 package sfenv
 package rules
 
-import fabric.rw.RW
+import fabric.rw.*
 
 case class Import(provider: String, share: String, roles: Option[List[String]]) derives RW:
   def resolve(name: String)(using n: NameResolver) =

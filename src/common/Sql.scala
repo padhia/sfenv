@@ -72,8 +72,6 @@ object Sql:
     *   Pipe that returns original Stream of Sql statements with USE ROLE inserted
     */
   def usingRole[F[_]](secAdm: RoleName, sysAdm: RoleName): Pipe[F, Sql, Sql] = s =>
-    import Sql.*
-
     /** set current role if it is different from previous role
       *
       * @param prev

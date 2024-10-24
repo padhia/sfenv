@@ -1,7 +1,7 @@
 package sfenv
 package rules
 
-import fabric.rw.RW
+import fabric.rw.*
 
 import cats.syntax.all.*
 

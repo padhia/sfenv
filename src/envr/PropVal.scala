@@ -1,7 +1,7 @@
 package sfenv
 package envr
 
-import fabric.{Bool => JBool, Json, NumDec => JNum, Str => JStr}
+import fabric.{Bool => JBool, Json, NumDec => JNum, NumInt => JInt, Str => JStr}
 import fabric.define.DefType
 import fabric.rw.RW
 
@@ -27,6 +27,7 @@ object PropVal:
     x match
       case JStr(x, _)  => Str(x)
       case JNum(x, _)  => Num(x)
+      case JInt(x, _)  => Num(x)
       case JBool(x, _) => Bool(x)
       case _           => throw RuntimeException(s"$x is not a valid PropVal")
 

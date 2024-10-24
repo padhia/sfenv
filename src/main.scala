@@ -14,7 +14,12 @@ import com.monovore.decline.effect.*
 import java.io.IOException
 import java.nio.file.FileSystemException
 
+import scala.util.Try
+
 import envr.SfEnv
+import fabric.*
+import fabric.io.*
+import fabric.rw.*
 
 object Main
     extends CommandIOApp(
@@ -24,7 +29,9 @@ object Main
     ):
 
   extension (s: String)
-    def toRbac(env: String): Either[Error, SfEnv] = parse(s).flatMap(Decoder[rules.Rules].decodeJson(_)).map(_.resolve(env))
+    def toRbac(env: String): Either[Error, SfEnv] = Try(summon[RW[rules.Rules]].write(YamlParser(s))).toEither.left
+      .map(e => Error(e.getMessage()))
+      .map(_.resolve(env))
 
   def makeRbacPair(curr: String, prev: Option[String], env: EnvName = "DEV"): Either[Error, (SfEnv, Option[SfEnv])] =
     for

@@ -1,9 +1,10 @@
 package sfenv
 package rules
 
-import io.circe.*
-
 import envr.{ObjMeta, Props}
+import fabric.*
+import fabric.define.DefType
+import fabric.rw.*
 
 case class Schema(x: Schema.Aux, props: Props):
   export x.*
@@ -23,7 +24,8 @@ object Schema:
       acc_roles: Option[AccRoles],
       tags: Tags,
       comment: Comment
-  ) derives Decoder
+  ) derives RW
 
-  given Decoder[Schema] with
-    def apply(c: HCursor) = summon[Decoder[Aux]].apply(c).map(Schema(_, Util.fromCursor[Aux](c)))
+  def fromJson(x: Json) = Schema(summon[RW[Aux]].write(x), props = Util.extraElems[Aux](x))
+
+  given RW[Schema] = RW.from(x => summon[RW[Aux]].read(x.x), fromJson, DefType.Json)

@@ -1,10 +1,10 @@
 package sfenv
 package rules
 
-import fabric.rw.RW
-import fabric.*
-
 import envr.{ObjMeta, Props}
+import fabric.*
+import fabric.define.DefType
+import fabric.rw.*
 
 case class Database(x: Database.Aux, props: Props):
   export x.*
@@ -20,8 +20,6 @@ case class Database(x: Database.Aux, props: Props):
 object Database:
   case class Aux(transient: Option[Boolean], schemas: Option[Map[String, Schema]], tags: Tags, comment: Comment) derives RW
 
-  def apply(doc: Json) =
-    summon[RW[Aux]].write(doc)
-  // given RW[Database] = RW.from(
-  //   summon[RW[Aux]].read(x)
-  //   // def apply(c: HCursor) = summon[Decoder[Aux]](c).map(Database(_, Util.fromCursor[Aux](c)))
+  def fromJson(doc: Json) = Database(summon[RW[Aux]].write(doc), props = Util.extraElems[Aux](doc))
+
+  given RW[Database] = RW.from(x => summon[RW[Aux]].read(x.x), fromJson, DefType.Json)

@@ -1,7 +1,9 @@
 package sfenv
 package rules
 
-import io.circe.*
+import fabric.*
+import fabric.define.DefType
+import fabric.rw.*
 
 import envr.{ObjMeta, Props}
 
@@ -15,7 +17,8 @@ case class Warehouse(x: Warehouse.Aux, props: Props):
     )
 
 object Warehouse:
-  case class Aux(acc_roles: Option[AccRoles], tags: Tags, comment: Comment) derives Decoder
+  case class Aux(acc_roles: Option[AccRoles], tags: Tags, comment: Comment) derives RW
 
-  given Decoder[Warehouse] with
-    def apply(c: HCursor) = summon[Decoder[Aux]](c).map(Warehouse(_, Util.fromCursor[Aux](c)))
+  def fromJson(x: Json) = Warehouse(summon[RW[Aux]].write(x), props = Util.extraElems[Aux](x))
+
+  given RW[Warehouse] = RW.from(x => summon[RW[Aux]].read(x.x), fromJson, DefType.Json)

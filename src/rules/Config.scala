@@ -1,7 +1,7 @@
 package sfenv
 package rules
 
-import fabric.rw.RW
+import fabric.rw.*
 
 case class Config(
     secadm: String,

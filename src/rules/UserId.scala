@@ -1,9 +1,10 @@
 package sfenv
 package rules
 
-import io.circe.*
-
 import envr.{ObjMeta, Props}
+import fabric.*
+import fabric.define.DefType
+import fabric.rw.*
 
 case class UserId(x: UserId.Aux, props: Props):
   export x.*
@@ -16,7 +17,8 @@ case class UserId(x: UserId.Aux, props: Props):
     )
 
 object UserId:
-  case class Aux(roles: Option[List[String]], tags: Tags, comment: Comment) derives Decoder
+  case class Aux(roles: Option[List[String]], tags: Tags, comment: Comment) derives RW
 
-  given Decoder[UserId] with
-    def apply(c: HCursor) = summon[Decoder[Aux]].apply(c).map(UserId(_, Util.fromCursor[Aux](c)))
+  def fromJson(x: Json) = UserId(summon[RW[Aux]].write(x), props = Util.extraElems[Aux](x))
+
+  given RW[UserId] = RW.from(x => summon[RW[Aux]].read(x.x), fromJson, DefType.Json)
