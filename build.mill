@@ -12,7 +12,7 @@ object Ver {
 
 object `package` extends RootModule with ScalaModule with PublishModule {
   def scalaVersion   = "3.5.1"
-  def publishVersion = "0.1.0"
+  def publishVersion = "0.1.1"
   def scalacOptions  = Seq("-deprecation", "-Wunused:all", "-release", "11")
   def artifactName   = "sfenv"
   def mainClass      = Some("sfenv.Main")

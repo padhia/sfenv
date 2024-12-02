@@ -1,10 +1,12 @@
 package sfenv
 
-import io.circe.{Decoder, Error}
+import io.circe.Decoder
+import io.circe.Error
 import io.circe.yaml.parser.parse
 
 import fs2.Stream
-import fs2.io.file.{Files, Path}
+import fs2.io.file.Files
+import fs2.io.file.Path
 import fs2.io.stdinUtf8
 
 import cats.effect.*
@@ -22,45 +24,49 @@ import envr.SfEnv
 object Main
     extends CommandIOApp(
       name = "sfenv",
-      version = "0.1.0",
+      version = "0.1.1",
       header = "Generate SQLs for declaratively managed Snowflake environments"
     ):
 
-  extension (s: String)
-    def toRbac(env: String): Either[Error, SfEnv] = parse(s).flatMap(Decoder[rules.Rules].decodeJson(_)).map(_.resolve(env))
+  type TextIO = IO[String]
 
-  def makeRbacPair(curr: String, prev: Option[String], env: EnvName = "DEV"): Either[Error, (SfEnv, Option[SfEnv])] =
-    for
-      c <- curr.toRbac(env)
-      p <- prev.traverse(_.toRbac(env))
-    yield (c, p)
+  extension (s: String)
+    def toRbac(env: String, onlyFuture: Option[Boolean] = None, drops: Option[ProcessDrops] = None): Either[Error, SfEnv] =
+      parse(s)
+        .flatMap(Decoder[rules.Rules].decodeJson(_))
+        .map(_.resolve(env, onlyFuture, drops))
 
   def genEnvSqls(
       env: EnvName,
-      curr: Stream[IO, String],
-      prev: Option[Stream[IO, String]],
-      onlyFuture: Boolean,
-      drops: ProcessDrops,
-      createUsers: Boolean
+      curr: TextIO,
+      prev: Option[TextIO],
+      onlyFuture: Option[Boolean],
+      drops: Option[ProcessDrops]
   ): IO[ExitCode] =
+    def makeRbacPair(curr: String, prev: Option[String]): Either[Error, (SfEnv, Option[SfEnv])] =
+      for
+        c <- curr.toRbac(env, onlyFuture, drops)
+        p <- prev.traverse(_.toRbac(env, onlyFuture, drops))
+      yield (c, p)
+
     val rbacs: IO[(SfEnv, Option[SfEnv])] =
       for
-        c  <- curr.compile.string
-        p  <- prev.traverse(_.compile.string)
-        cp <- IO.fromEither(makeRbacPair(c, p, env))
+        c  <- curr
+        p  <- prev.sequence
+        cp <- IO.fromEither(makeRbacPair(c, p))
       yield cp
 
     Stream
       .eval(rbacs)
-      .flatMap((curr, prev) => curr.genSqls(prev, onlyFuture, drops, createUsers))
+      .flatMap((curr, prev) => curr.genSqls(prev))
       .map(println)
       .compile
       .drain
       .as(ExitCode.Success)
 
-  def genAdminSqls(env: EnvName, rulesText: Stream[IO, String]) =
+  def genAdminSqls(env: EnvName, rulesText: TextIO) =
     for
-      rules <- rulesText.compile.string
+      rules <- rulesText
       rbac  <- IO.fromEither(rules.toRbac(env))
       _     <- IO.println(rbac.adminRoleSqls)
     yield ExitCode.Success
@@ -75,16 +81,20 @@ object Main
     }
 
   def main: Opts[IO[ExitCode]] =
-    given Argument[Stream[IO, String]] = Argument.from("rules-file")(s => Files[IO].readUtf8(Path(s)).validNel)
+    given Argument[TextIO] = Argument.from("rules-file")(s => Files[IO].readUtf8(Path(s)).compile.string.validNel)
 
     val env = Opts
       .option[String]("env", short = "e", help = "Environment name (default DEV)")
       .orElse(Opts.env[String]("SFENV", help = "Environment name (default DEV)"))
       .map(_.toUpperCase)
       .withDefault("DEV")
-    val currRules = Opts.argument[Stream[IO, String]]("rules-file").withDefault(stdinUtf8[IO](64 * 1024))
+
+    val currRules = Opts
+      .argument[TextIO]("rules-file")
+      .withDefault(stdinUtf8[IO](64 * 1024).compile.string)
+
     val prevRules = Opts
-      .option[Stream[IO, String]](
+      .option[TextIO](
         "diff",
         short = "d",
         help = "generate SQLs for only the differences when compared to this ruleset"
@@ -92,14 +102,15 @@ object Main
       .orNone
 
     val adminRoles = Opts.flag("admin-roles", help = "Generate SQLs to create environment admin roles")
-
-    val onlyFuture = Opts.flag("only-future", short = "F", help = "Generate grants for only FUTURE objects (no ALL)").orFalse
+    val onlyFuture = Opts
+      .flag("only-future", short = "F", help = "Generate grants for only FUTURE objects (no ALL)")
+      .orNone
+      .map(_.map(_ => true))
     val drops = Opts
       .option[ProcessDrops]("drop", short = "D", help = "process DROP statements (default: non-local)")
-      .withDefault(ProcessDrops.NonLocal)
-    val createUsers = Opts.flag("create-users", short = "u", help = "Generate CREATE USER statements (default off)").orFalse
+      .orNone
 
     val adminCmd = (env, currRules, adminRoles).mapN((e, c, _) => genAdminSqls(e, c))
-    val envCmd   = (env, currRules, prevRules, onlyFuture, drops, createUsers).mapN(genEnvSqls)
+    val envCmd   = (env, currRules, prevRules, onlyFuture, drops).mapN(genEnvSqls)
 
     adminCmd.orElse(envCmd).map(handleErrors(_))

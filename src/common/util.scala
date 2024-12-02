@@ -1,5 +1,7 @@
 package sfenv
 
+import io.circe.*
+
 import cats.data.Validated
 import cats.syntax.all.*
 
@@ -31,6 +33,9 @@ object ProcessDrops:
   given Argument[ProcessDrops] = Argument.from("all|non-local|none")(x =>
     Validated.fromOption(ProcessDrops(x), "invalid drop option; choose from: 'all', 'non-local', 'none'").toValidatedNel
   )
+
+  given Decoder[ProcessDrops] =
+    summon[Decoder[String]].emap(x => apply(x).toRight(s"invalid drop option '$x'; choose from: 'all', 'non-local', 'none'"))
 
 extension (x: String) def asSqlLiteral = s"'${x.replace("'", "''")}'"
 

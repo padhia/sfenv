@@ -30,7 +30,7 @@ object RoleName:
 
   extension (xs: List[RoleName])
     def regrant(ys: List[RoleName], grantee: UserName | RoleName) =
-      xs.merge(ys).collect {
-        case (Some(n), None) => Sql.RoleGrant(n, grantee)
-        case (None, Some(o)) => Sql.RoleGrant(o, grantee, revoke = true)
-      }
+      xs.merge(ys)
+        .collect:
+          case (Some(n), None) => Sql.RoleGrant(n, grantee)
+          case (None, Some(o)) => Sql.RoleGrant(o, grantee, revoke = true)

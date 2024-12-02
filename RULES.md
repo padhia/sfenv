@@ -5,6 +5,7 @@ Rules file is a `yaml` or a `json` file that is used by `sfenv` utility to gener
 All available *sections* are documented below. Only the `config` section is required, all other sections may be omitted when not required.
 
 - **`config`**
+- `options`
 - `imports`
 - `databases`
 - `warehouses`
@@ -18,7 +19,7 @@ Although object properties listed below don't explicitly include them, but all o
 
 A YAML/JSON object that controls naming of database objects. This section must list all attributes shown in the following example:
 
-**Example**:
+**Example:**
 
 ```yaml
 config:
@@ -35,13 +36,42 @@ config:
 
 Notes:
 
-- Each attribute in `config` is a *template* to derive corresponding object name. Names are derived by substituting *placeholders* (variables enclosed in `{}`).
-- A special placeholder, named `env`, lets one rule file to generate different sets of SQL statements for different environments.
+- All attributes in `config` section are *templates* to derive corresponding object names.
+  - Names are derived by substituting *placeholders* (variables enclosed in `{}`).
+- `env` is a special variable that is supplied at run-time. This enables generating SQL statements that are similar but have slightly different names depending on the *environment*.
 - Value for `env` is supplied at runtime whereas values for all other placeholder names are taken from other sections within the rules file.
 - Access role names are derived using the placeholders of the resource type they control.
 - Generated DDLs and DCLs will include appropriate `use role <secadm>|<dbadm>` statements.
   - `<secadm>` is security administrator ID for an environment and controls permissions
   - `<dbadm>` is resource owner and owns the created objects
+
+## `options`
+
+A YAML/JSON object containing *options* that control SQL code generation.
+
+**Example:**
+
+```yaml
+options:
+  create_users: true
+  create_roles: true
+  only_futures: true
+  drops: non-local
+```
+Notes:
+
+- `create_users` controls whether DDLs for managing users are generated or not.
+  - this option affects both, `users` and `apps`, sections
+  - By default Snowflake User IDs only serve as anchors for assigning roles and are not created
+  - Recommendation: enable this option if users are not externally managed
+- `create_roles` controls whether DDLs for managing *account-level roles* are generated or not.
+  - Note that database-level roles are always generated when required
+- `only_futures`: generate `ALL` in addition to `FUTURE` grants
+- `drops`: controls generation of `DROP` statements
+  - `non-local`: generate `DROP` for objects that are not local (for example shares)
+  - `all`: generate `DROP` statements
+  - `none`: do not generate `DROP` statements
+- command-line options have higher priority over options specified in rules file
 
 ## `imports`
 

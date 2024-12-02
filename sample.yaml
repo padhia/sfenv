@@ -9,6 +9,9 @@ config:
   fn_role: "RL_{env}_{role}"
   app_id: "APP_{env}_{app}"
 
+options:
+  create_users: true
+
 imports:
   CUST:
     provider: CUSTP
