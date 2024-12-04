@@ -2,8 +2,6 @@ package sfenv
 package envr
 package test
 
-import fs2.*
-
 import munit.FunSuite
 import sfenv.Main.toRbac
 
@@ -24,7 +22,7 @@ class UserTests extends FunSuite:
           |$users
           |""".stripMargin
         .toRbac("DEV")
-        .map(rbac => rbac.users(0).create.flatMap(_.stream(rbac.sysAdm)).compile.string)
+        .map(rbac => rbac.users(0).create.flatMap(_.texts(rbac.sysAdm)).toList.mkString(""))
 
     val expected =
       """|CREATE USER IF NOT EXISTS JDOE
@@ -44,6 +42,6 @@ class UserTests extends FunSuite:
           |$users
           |""".stripMargin
         .toRbac("DEV")
-        .map(_.genSqls(None).compile.string)
+        .map(_.genSqls(None).toList.mkString)
 
     assert(clue(actual) == clue(Right("")))

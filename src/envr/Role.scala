@@ -1,7 +1,7 @@
 package sfenv
 package envr
 
-import fs2.Stream
+import cats.data.Chain
 
 import Sql.*
 
@@ -14,13 +14,12 @@ object Role:
     extension (role: Role)
       override def id = role.name
 
-      override def create[F[_]]: Stream[F, Sql] =
+      override def create: Chain[Sql] =
         import role.*
-        Stream.emit(Sql.CreateRole(name, meta)) ++
-          Stream.emits(accRoles).map(ar => Sql.RoleGrant(ar, name))
+        Sql.CreateRole(name, meta) +: Chain.fromSeq(accRoles).map(ar => Sql.RoleGrant(ar, name))
 
-      override def unCreate[F[_]] = Stream.emit(Sql.DropObj("ROLE", role.name.roleName))
+      override def unCreate = Chain(Sql.DropObj("ROLE", role.name.roleName))
 
-      override def alter[F[_]](old: Role): Stream[F, Sql] =
-        Stream.emits(role.accRoles.regrant(old.accRoles, role.name)) ++
+      override def alter(old: Role): Chain[Sql] =
+        Chain.fromSeq(role.accRoles).regrant(Chain.fromSeq(old.accRoles), role.name) ++
           role.meta.alter(role.name.kind, role.name.roleName, old.meta)

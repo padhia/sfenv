@@ -1,6 +1,7 @@
 package sfenv
 package envr
-import fs2.*
+
+import cats.data.Chain
 
 import PropVal.*
 import munit.FunSuite
@@ -11,7 +12,7 @@ class ObjMetaTests extends FunSuite:
   val tags      = Map("tag1" -> "tag value 1", "tag2" -> "tag value 2")
   val sysAdm    = RoleName.Account("ENVADMIN")
 
-  def sqls(xs: Stream[Pure, Sql]) = xs.flatMap(_.stream(sysAdm, true)).compile.toList
+  def sqls(xs: Chain[Sql]) = xs.flatMap(_.texts(sysAdm, true)).toList
 
   test("toString - props"):
     val testOM   = ObjMeta(testProps)

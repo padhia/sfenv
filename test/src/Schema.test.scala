@@ -2,8 +2,6 @@ package sfenv
 package envr
 package test
 
-import fs2.*
-
 import munit.FunSuite
 import sfenv.Main.toRbac
 
@@ -16,7 +14,7 @@ class SchemaTests extends FunSuite:
       .map: rbac =>
         val db               = rbac.databases(0)
         given SqlObj[Schema] = Schema.sqlObj(db.name)
-        db.schemas(0).create.flatMap(_.stream(rbac.sysAdm)).toList
+        db.schemas(0).create.flatMap(_.texts(rbac.sysAdm)).toList
 
     val expected = List(
       "CREATE SCHEMA IF NOT EXISTS EDW_DEV.CUSTOMER WITH MANAGED ACCESS DATA_RETENTION_TIME_IN_DAYS = 10",
@@ -41,7 +39,7 @@ class SchemaTests extends FunSuite:
       .map: rbac =>
         val db               = rbac.databases(0)
         given SqlObj[Schema] = Schema.sqlObj(db.name)
-        db.schemas(0).unCreate.flatMap(_.stream(rbac.sysAdm)).toList
+        db.schemas(0).unCreate.flatMap(_.texts(rbac.sysAdm)).toList
 
     val expected = List(
       "DROP DATABASE ROLE IF EXISTS EDW_DEV.CUSTOMER_R",
@@ -61,7 +59,7 @@ class SchemaTests extends FunSuite:
         val currSch          = curr.databases(0).schemas(0)
         val prevSch          = prev.databases(0).schemas(0)
         given SqlObj[Schema] = Schema.sqlObj(db.name)
-        currSch.alter(prevSch).flatMap(_.stream(curr.sysAdm)).toList
+        currSch.alter(prevSch).flatMap(_.texts(curr.sysAdm)).toList
       }
     val expected = List(
       "ALTER SCHEMA IF EXISTS EDW_DEV.CUSTOMER DISABLE MANAGED ACCESS",

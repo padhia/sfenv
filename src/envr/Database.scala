@@ -1,7 +1,7 @@
 package sfenv
 package envr
 
-import fs2.*
+import cats.data.Chain
 
 import Sql.*
 import SqlOperable.given
@@ -16,22 +16,23 @@ object Database:
       extension (db: Database)
         override def id = db.name
 
-        override def create[F[_]] =
+        override def create =
           given SqlObj[Schema] = Schema.sqlObj(db.name)
           import db.*
 
-          Stream.emit(Sql.CreateObj(if transient then "TRANSIENT DATABASE" else "DATABASE", name, meta.toString())) ++
-            Stream.emit(Sql.ObjGrant("DATABASE", name, secAdm, List("CREATE DATABASE ROLE", "USAGE"))) ++
-            Stream.emits(schemas).flatMap(_.create)
+          Chain(
+            Sql.CreateObj(if transient then "TRANSIENT DATABASE" else "DATABASE", name, meta.toString()),
+            Sql.ObjGrant("DATABASE", name, secAdm, List("CREATE DATABASE ROLE", "USAGE"))
+          ) ++
+            Chain.fromSeq(schemas).flatMap(_.create)
 
-        override def unCreate[F[_]] =
+        override def unCreate =
           given SqlObj[Schema] = Schema.sqlObj(db.name)
-          Stream.emits(db.schemas).flatMap(_.unCreate) ++
-            Stream.emit(Sql.DropObj("DATABASE", db.name))
+          Chain.fromSeq(db.schemas).flatMap(_.unCreate) :+ Sql.DropObj("DATABASE", db.name)
 
-        override def alter[F[_]](old: Database) =
-          if db.transient != old.transient then old.unCreate[F] ++ create[F]
+        override def alter(old: Database) =
+          if db.transient != old.transient then old.unCreate ++ create
           else
             given SqlObj[Schema] = Schema.sqlObj(db.name)
             db.meta.alter("DATABASE", db.name, old.meta) ++
-              db.schemas.alter(old.schemas)
+              Chain.fromSeq(db.schemas).alter(Chain.fromSeq(old.schemas))

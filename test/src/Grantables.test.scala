@@ -1,7 +1,7 @@
 package sfenv
 package envr
 
-import fs2.*
+import cats.data.Chain
 
 import Grantables.*
 import munit.FunSuite
@@ -14,7 +14,7 @@ class GrantablesTests extends FunSuite:
   val rs      = Roles(List(RoleName.Database("DB1", "SCH1_R")))
   val envAdm  = RoleName.Account("ENVADMIN")
 
-  def sqls(xs: Stream[Pure, Sql]) = xs.flatMap(_.stream(envAdm, true)).compile.toList
+  def sqls(xs: Chain[Sql]) = xs.flatMap(_.texts(envAdm, true)).toList
 
   test("grant - privileges"):
     val expected = List("GRANT SELECT, INSERT ON FUTURE TABLES IN SCHEMA DB1.SCH1 TO DATABASE ROLE DB1.SCH1_RW")

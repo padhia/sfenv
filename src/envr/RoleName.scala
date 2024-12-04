@@ -3,6 +3,9 @@ package envr
 
 import io.circe.*
 
+import cats.data.Chain
+import cats.kernel.Eq
+
 enum RoleName:
   case Database(db: String, name: String)
   case Account(name: String)
@@ -23,13 +26,14 @@ object RoleName:
     case Array(role)     => Some(Account(role))
     case _               => None
 
+  given Eq[RoleName]      = Eq.fromUniversalEquals
   given Decoder[RoleName] = summon[Decoder[String]].emap(x => apply(x).toRight(s"$x is an invalid role name"))
 
   given KeyDecoder[RoleName] with
     def apply(x: String) = RoleName.apply(x)
 
-  extension (xs: List[RoleName])
-    def regrant(ys: List[RoleName], grantee: UserName | RoleName) =
+  extension (xs: Chain[RoleName])
+    def regrant(ys: Chain[RoleName], grantee: UserName | RoleName) =
       xs.merge(ys)
         .collect:
           case (Some(n), None) => Sql.RoleGrant(n, grantee)

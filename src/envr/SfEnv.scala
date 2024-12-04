@@ -3,10 +3,19 @@ package envr
 
 import fs2.Stream
 
-import Sql.usingRole
-import SqlOperable.given
-
 type ObjType = String
+
+extension [T: SqlObj](xs: List[T])
+  def create[F[_]]: Stream[F, Sql]   = Stream.emits(xs).flatMap(x => Stream.emits(x.create.toList))
+  def unCreate[F[_]]: Stream[F, Sql] = Stream.emits(xs).flatMap(x => Stream.emits(x.unCreate.toList))
+  def alter[F[_]](ys: List[T]): Stream[F, Sql] =
+    val creates = Stream.emits(xs).filterNot(x => ys.exists(_.id == x.id))
+    val drops   = Stream.emits(ys).filterNot(y => xs.exists(_.id == y.id))
+    val alters  = Stream.emits(xs).flatMap(x => Stream.emits(ys).map((x, _))).filter(_.id == _.id)
+
+    creates.flatMap(x => Stream.emits(x.create.toList)) ++
+      drops.flatMap(x => Stream.emits(x.unCreate.toList)) ++
+      alters.flatMap((c, p) => Stream.emits(c.alter(p).toList))
 
 case class SfEnv(
     secAdm: RoleName,
@@ -21,6 +30,24 @@ case class SfEnv(
     drops: ProcessDrops,
     onlyFutures: Boolean
 ):
+  private def create =
+    given SqlObj[Database] = Database.sqlObj(secAdm)
+
+    imports.create ++
+      databases.create ++
+      warehouses.create ++
+      roles.create ++
+      users.create
+
+  private def alter(old: SfEnv) =
+    given SqlObj[Database] = Database.sqlObj(secAdm)
+
+    imports.alter(old.imports) ++
+      databases.alter(old.databases) ++
+      warehouses.alter(old.warehouses) ++
+      roles.alter(old.roles) ++
+      users.alter(old.users)
+
   /** Generate SQL statements from the RBAC configuration
     *
     * @param curr
@@ -32,9 +59,10 @@ case class SfEnv(
     * @return
     *   Stream of DDL texts
     */
+  def genSqls[F[_]]: Stream[F, String] = genSqls(None)
   def genSqls[F[_]](prev: Option[SfEnv]): Stream[F, String] =
     def formatSql(s: String) =
-      (if "^(CREATE|USE) ".r.findPrefixOf(s).isDefined then Stream.emit("") else Stream.empty) ++ Stream.emit(s + ";")
+      if "^(CREATE|USE) ".r.findPrefixOf(s).isDefined then List("", s + ";") else List(s + ";")
 
     val stmts = prev.map(p => this.alter(p)).getOrElse(this.create) // generate a stream of Sqls from Rbac
     def isUserSql(sql: Sql) =
@@ -49,26 +77,26 @@ case class SfEnv(
       import Sql.*
 
       extension (r: RoleName)
-        def isAccRole: Boolean =
+        def isAccountRole: Boolean =
           r match
             case _: RoleName.Account => true
             case _                   => false
 
       sql match
-        case CreateRole(r, _) => r.isAccRole
-        case DropRole(r)      => r.isAccRole
-        case AlterRole(r, _)  => r.isAccRole
+        case CreateRole(r, _) => r.isAccountRole
+        case DropRole(r)      => r.isAccountRole
+        case AlterRole(r, _)  => r.isAccountRole
         case _                => false
 
     stmts
       .through(s => if createUsers then s else s.filter(!isUserSql(_)))
       .through(s => if createRoles then s else s.filter(!isRoleSql(_)))
-      .through(usingRole)
-      .flatMap((adm, sql) =>
-        Stream.emits(adm.toList).map(_.toSql(secAdm, sysAdm)) ++ Stream.emits(sql.texts(sysAdm, onlyFutures, drops))
+      .through(Sql.usingRole)
+      .flatMap((role, sql) =>
+        Stream.emits(role.toList).map(_.toSql(secAdm, sysAdm)) ++ Stream.emits(sql.texts(sysAdm, onlyFutures, drops).toList)
       )
-      .flatMap(formatSql) // add delimiter and optionally, a blank line for formatting
-      .dropWhile(_ == "") // skip the initial empty line
+      .flatMap(x => Stream.emits(formatSql(x))) // add delimiter and optionally, a blank line for formatting
+      .dropWhile(_ == "")                       // skip the initial empty line
 
   def adminRoleSqls =
     s"""|USE ROLE USERADMIN;
@@ -82,33 +110,3 @@ case class SfEnv(
         |
         |USE ROLE SYSADMIN;
         |GRANT CREATE DATABASE ON ACCOUNT TO ${sysAdm.role};""".stripMargin
-
-object SfEnv:
-  given SqlOperable[SfEnv] with
-    extension (x: SfEnv)
-      override def create[F[_]]: Stream[F, Sql] =
-        given SqlObj[Database] = Database.sqlObj(x.secAdm)
-
-        x.imports.create ++
-          x.databases.create ++
-          x.warehouses.create ++
-          x.roles.create ++
-          x.users.create
-
-      override def unCreate[F[_]]: Stream[F, Sql] =
-        given SqlObj[Database] = Database.sqlObj(x.secAdm)
-
-        x.imports.unCreate ++
-          x.databases.unCreate ++
-          x.warehouses.unCreate ++
-          x.roles.unCreate ++
-          x.users.unCreate
-
-      override def alter[F[_]](old: SfEnv): Stream[F, Sql] =
-        given SqlObj[Database] = Database.sqlObj(x.secAdm)
-
-        x.imports.alter(old.imports) ++
-          x.databases.alter(old.databases) ++
-          x.warehouses.alter(old.warehouses) ++
-          x.roles.alter(old.roles) ++
-          x.users.alter(old.users)

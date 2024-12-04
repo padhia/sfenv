@@ -2,7 +2,9 @@ package sfenv
 
 import io.circe.*
 
+import cats.data.Chain
 import cats.data.Validated
+import cats.kernel.Eq
 import cats.syntax.all.*
 
 import com.monovore.decline.Argument
@@ -40,12 +42,14 @@ object ProcessDrops:
 extension (x: String) def asSqlLiteral = s"'${x.replace("'", "''")}'"
 
 extension [K, V](m1: Map[K, V])
-  def merge(m2: Map[K, V]): List[(K, Option[V], Option[V])] =
+  def merge(m2: Map[K, V]): Chain[(K, Option[V], Option[V])] =
     val keys = m1.keySet ++ m2.keySet
-    keys.toList.map(k => (k, m1.get(k), m2.get(k)))
+    Chain.fromIterableOnce(keys).map(k => (k, m1.get(k), m2.get(k)))
 
-extension [A](x: List[A])
-  def merge(y: List[A]): List[(Option[A], Option[A])] =
+extension [A: Eq](x: Chain[A])
+  def merge(y: Chain[A]): Chain[(Option[A], Option[A])] =
     x.filterNot(y.contains(_)).map(x => (Some(x), None)) ++
       x.filter(y.contains(_)).map(x => (Some(x), Some(x))) ++
       y.filterNot(x.contains(_)).map(x => (None, Some(x)))
+
+extension [A: Eq](x: List[A]) def merge(y: List[A]): Chain[(Option[A], Option[A])] = Chain.fromSeq(x).merge(Chain.fromSeq(y))

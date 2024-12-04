@@ -2,8 +2,6 @@ package sfenv
 package envr
 package test
 
-import fs2.*
-
 import munit.FunSuite
 import sfenv.Main.toRbac
 
@@ -15,7 +13,7 @@ class DatabaseTests extends FunSuite:
       .toRbac("DEV")
       .map: rbac =>
         given SqlObj[Database] = Database.sqlObj(rbac.secAdm)
-        rbac.databases(0).create.flatMap(_.stream(rbac.sysAdm)).toList
+        rbac.databases(0).create.flatMap(_.texts(rbac.sysAdm)).toList
 
     val expected = List(
       "CREATE DATABASE IF NOT EXISTS EDW_DEV DATA_RETENTION_TIME_IN_DAYS = 10 COMMENT = 'EDW core database'",
@@ -28,7 +26,7 @@ class DatabaseTests extends FunSuite:
       .toRbac("DEV")
       .map: rbac =>
         given SqlObj[Database] = Database.sqlObj(rbac.secAdm)
-        rbac.databases(0).unCreate.flatMap(_.stream(rbac.sysAdm)).toList
+        rbac.databases(0).unCreate.flatMap(_.texts(rbac.sysAdm)).toList
 
     val expected = List("--DROP DATABASE IF EXISTS EDW_DEV")
     assert(clue(ddl) == Right(expected))
@@ -42,7 +40,7 @@ class DatabaseTests extends FunSuite:
         val currDb             = curr.databases(0)
         val prevDb             = prev.databases(0)
         given SqlObj[Database] = Database.sqlObj(curr.secAdm)
-        currDb.alter(prevDb).flatMap(_.stream(curr.sysAdm)).toList
+        currDb.alter(prevDb).flatMap(_.texts(curr.sysAdm)).toList
       }
     val expected = List(
       "ALTER DATABASE IF EXISTS EDW_DEV SET COMMENT = 'EDW core database2'",

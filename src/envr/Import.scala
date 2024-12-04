@@ -1,7 +1,7 @@
 package sfenv
 package envr
 
-import fs2.Stream
+import cats.data.Chain
 
 import Sql.*
 
@@ -16,17 +16,17 @@ object Import:
     extension (shr: Import)
       override def id = shr.name
 
-      override def create[F[_]] =
+      override def create =
         import shr.*
-        Stream.emit(Sql.CreateObj("DATABASE", name, s" FROM SHARE $provider.$share")) ++
-          Stream.emits(roles).map(r => Sql.ObjGrant("DATABASE", name, r, priv))
+        Sql.CreateObj("DATABASE", name, s" FROM SHARE $provider.$share") +:
+          Chain.fromSeq(roles).map(r => Sql.ObjGrant("DATABASE", name, r, priv))
 
-      override def unCreate[F[_]] = Stream.emit(Sql.DropObj("DATABASE", shr.name, true))
+      override def unCreate = Chain(Sql.DropObj("DATABASE", shr.name, true))
 
-      override def alter[F[_]](old: Import) =
+      override def alter(old: Import) =
         if shr.provider == old.provider && shr.share == old.share then
-          Stream
-            .emits(shr.roles.merge(old.roles))
+          shr.roles
+            .merge(old.roles)
             .collect:
               case (Some(n), None) => Sql.ObjGrant("DATABASE", shr.name, n, priv)
               case (None, Some(o)) => Sql.ObjGrant("DATABASE", shr.name, o, priv, revoke = true)

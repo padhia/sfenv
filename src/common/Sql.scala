@@ -2,6 +2,8 @@ package sfenv
 
 import fs2.*
 
+import cats.data.Chain
+
 import envr.{RoleName, UserName}
 
 enum SqlAdmin:
@@ -41,33 +43,33 @@ enum Sql:
       sysAdm: RoleName,
       onlyFuture: Boolean = false,
       drops: ProcessDrops = ProcessDrops.NonLocal
-  ): List[String] = this match
-    case CreateObj(k, n, o) => List(s"CREATE $k IF NOT EXISTS $n$o")
-    case AlterObj(k, n, o)  => List(s"ALTER $k IF EXISTS $n$o")
-    case AlterRole(r, m)    => List(s"ALTER ${r.kind} IF NOT EXIST ${r.roleName}$m")
-    case DropRole(r)        => List(s"${drops.sqlPfx(false)}DROP ${r.kind} IF EXISTS ${r.roleName}")
-    case DropObj(k, n, s)   => List(s"${drops.sqlPfx(k == "SCHEMA" || (k == "DATABASE" && !s))}DROP $k IF EXISTS $n")
+  ): Chain[String] = this match
+    case CreateObj(k, n, o) => Chain(s"CREATE $k IF NOT EXISTS $n$o")
+    case AlterObj(k, n, o)  => Chain(s"ALTER $k IF EXISTS $n$o")
+    case AlterRole(r, m)    => Chain(s"ALTER ${r.kind} IF NOT EXIST ${r.roleName}$m")
+    case DropRole(r)        => Chain(s"${drops.sqlPfx(false)}DROP ${r.kind} IF EXISTS ${r.roleName}")
+    case DropObj(k, n, s)   => Chain(s"${drops.sqlPfx(k == "SCHEMA" || (k == "DATABASE" && !s))}DROP $k IF EXISTS $n")
 
     case CreateRole(r, m) =>
-      List(s"CREATE ${r.kind} IF NOT EXISTS ${r.roleName}$m", s"GRANT ${r.role} TO ${sysAdm.role}")
+      Chain(s"CREATE ${r.kind} IF NOT EXISTS ${r.roleName}$m", s"GRANT ${r.role} TO ${sysAdm.role}")
 
     case RoleGrant(n, g, r) =>
       val grantee = g match
         case x: RoleName => x.role
         case x: UserName => s"USER $x"
-      List(if r then s"REVOKE ${n.role} FROM $grantee" else s"GRANT ${n.role} TO $grantee")
+      Chain(if r then s"REVOKE ${n.role} FROM $grantee" else s"GRANT ${n.role} TO $grantee")
 
     case ObjGrant(t, n, g, p, r) =>
-      if p.isEmpty then List.empty
+      if p.isEmpty then Chain.empty
       else
         val grant = if r then "REVOKE" else "GRANT"
         val to    = if r then "FROM" else "TO"
 
         t match
-          case "DATABASE" | "SCHEMA" | "WAREHOUSE" => List(s"$grant ${p.mkString(", ")} ON $t $n $to ${g.role}")
+          case "DATABASE" | "SCHEMA" | "WAREHOUSE" => Chain(s"$grant ${p.mkString(", ")} ON $t $n $to ${g.role}")
           case _ =>
             def objGrant(scope: String) = s"$grant ${p.mkString(", ")} ON $scope ${t}S IN SCHEMA $n $to ${g.role}"
-            List(objGrant("FUTURE")) ++ (if onlyFuture then List.empty else List(objGrant("ALL")))
+            Chain(objGrant("FUTURE")) ++ (if onlyFuture then Chain.empty else Chain(objGrant("ALL")))
 
 object Sql:
   /** Inject appropriate USE ROLE ... statements before DDL and DCL statements
@@ -76,24 +78,12 @@ object Sql:
     *   - if more than one consecutive statements use the same role, remove redundant USE ROLE stateents
     *
     * @return
-    *   Pipe that returns original Stream of Sql statements with USE ROLE inserted
+    *   Chain of tuple containing Opetion Admin ID and the original Sql
     */
-  def usingRole[F[_]]: Pipe[F, Sql, (Option[SqlAdmin], Sql)] = s =>
-    /** set current role if it is different from previous role
-      *
-      * @param prev
-      *   role for the previous statement
-      * @param curr
-      *   role for the current statement
-      * @return
-      *   None if curr role is same as prev, otherwise curr role
-      */
-    def setRole(prev: Option[SqlAdmin], curr: SqlAdmin) =
-      prev match
-        case None       => Some(curr)
-        case Some(prev) => if prev == curr then None else Some(curr)
+  def usingRole[F[_]]: Pipe[F, Sql, (Option[SqlAdmin], Sql)] = xs =>
+    def setRole(p: Option[Sql], c: Sql) =
+      val prevRole = p.map(_.useRole)
+      val currRole = Some(c.useRole)
+      (if currRole == prevRole then None else currRole, c)
 
-    s
-      .map(x => (x.useRole, x))                          // determine the rule to use
-      .zipWithPrevious                                   // pair it with the previous role
-      .map((p, c) => (setRole(p.map(_._1), c._1), c._2)) // change the Role if it is same as the previous one
+    xs.zipWithPrevious.map(setRole)
