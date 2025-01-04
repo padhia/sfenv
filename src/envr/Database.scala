@@ -6,9 +6,17 @@ import cats.data.Chain
 import Sql.*
 import SqlOperable.given
 
-case class Database(name: String, transient: Boolean, meta: ObjMeta, schemas: List[Schema])
+case class Database(name: String, transient: Boolean, meta: ObjMeta, schemas: List[Schema]):
+  def kind = if transient then "TRANSIENT DATABASE" else "DATABASE"
 
 object Database:
+  given SfObj[Database] with
+    extension (obj: Database) def id: SfObjId = SfObjId(obj.name)
+    def genSql(obj: SqlOp[Database]): Chain[SqlStmt] = obj match
+      case SqlOp.Create(db)   => Chain(SqlStmt.createObj(db.kind, db.name, db.meta))
+      case SqlOp.Drop(db)     => Chain(SqlStmt.dropObj("DATABASE", db.name))
+      case SqlOp.Alter(db, _) => Chain(SqlStmt.createObj(db.kind, db.name, db.meta))
+
   def sqlObj(secAdm: RoleName) =
     new SqlObj[Database]:
       type Key = String

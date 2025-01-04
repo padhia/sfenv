@@ -5,9 +5,27 @@ import cats.data.Chain
 
 import Sql.*
 
-case class Role(name: RoleName, accRoles: List[RoleName], meta: ObjMeta)
+case class Role(name: RoleName, accRoles: List[RoleName], meta: ObjMeta):
+  def rolePairs = accRoles.map((_, name))
 
 object Role:
+  extension (r: (RoleName, RoleName))
+    def grant  = SqlStmt(Admin.Sec, s"GRANT ${r._1} TO ${r._2}")
+    def revoke = SqlStmt(Admin.Sec, s"REVOKE ${r._1} FROM ${r._2}")
+
+  given SfObj[Role] with
+    extension (obj: Role) def id: SfObjId = SfObjId(obj.name.roleName)
+    def genSql(obj: SqlOp[Role]): Chain[SqlStmt] = obj match
+      case SqlOp.Create(r) =>
+        SqlStmt(Admin.Sec, s"CREATE ${r.name}${r.meta}") +: Chain.fromSeq(r.rolePairs).map(_.grant)
+
+      case SqlOp.Drop(r) =>
+        Chain.fromSeq(r.rolePairs).map(_.revoke) :+ SqlStmt(Admin.Sec, s"DROP ${r.name}")
+
+      case SqlOp.Alter(newRole, oldRole) =>
+        Chain.fromSeq(newRole.rolePairs.filterNot(x => oldRole.rolePairs.exists(_ == x)).map(_.grant))
+          ++ Chain.fromSeq(oldRole.rolePairs.filterNot(x => newRole.rolePairs.exists(_ == x)).map(_.revoke))
+
   given SqlObj[Role] with
     override type Key = RoleName
 
