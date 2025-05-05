@@ -62,13 +62,14 @@ enum Sql:
     case ObjGrant(t, n, g, p, r) =>
       if p.isEmpty then Chain.empty
       else
-        val grant = if r then "REVOKE" else "GRANT"
-        val to    = if r then "FROM" else "TO"
+        val grant  = if r then "REVOKE" else "GRANT"
+        val to     = if r then "FROM" else "TO"
+        val plural = if t.endsWith("Y") then t.stripSuffix("Y") + "IES" else t + "S"
 
         t match
           case "DATABASE" | "SCHEMA" | "WAREHOUSE" => Chain(s"$grant ${p.mkString(", ")} ON $t $n $to ${g.role}")
           case _ =>
-            def objGrant(scope: String) = s"$grant ${p.mkString(", ")} ON $scope ${t}S IN SCHEMA $n $to ${g.role}"
+            def objGrant(scope: String) = s"$grant ${p.mkString(", ")} ON $scope $plural IN SCHEMA $n $to ${g.role}"
             Chain(objGrant("FUTURE")) ++ (if onlyFuture then Chain.empty else Chain(objGrant("ALL")))
 
 object Sql:

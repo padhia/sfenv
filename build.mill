@@ -2,26 +2,27 @@ import mill._
 import mill.scalalib._
 import mill.scalalib.publish._
 
-object Ver {
-  val circeParser = "0.14.10"
+object V {
+  val scala       = "3.6.4"
+  val circeParser = "0.14.13"
   val circeYaml   = "0.16.0"
-  val decline     = "2.4.1"
-  val fs2         = "3.11.0"
-  val munit       = "1.0.3"
+  val decline     = "2.5.0"
+  val fs2         = "3.12.0"
+  val munit       = "1.1.1"
 }
 
 object `package` extends RootModule with ScalaModule with PublishModule {
-  def scalaVersion   = "3.6.2"
+  def scalaVersion   = V.scala
   def publishVersion = "0.1.1"
-  def scalacOptions  = Seq("-deprecation", "-Wunused:all", "-release", "11")
+  def scalacOptions  = Seq("-deprecation", "-Wunused:all", "-release", "17")
   def artifactName   = "sfenv"
   def mainClass      = Some("sfenv.Main")
 
   def ivyDeps = Agg(
-    ivy"com.monovore::decline-effect:${Ver.decline}",
-    ivy"io.circe::circe-parser:${Ver.circeParser}",
-    ivy"io.circe::circe-yaml:${Ver.circeYaml}",
-    ivy"co.fs2::fs2-io:${Ver.fs2}"
+    ivy"com.monovore::decline-effect:${V.decline}",
+    ivy"io.circe::circe-parser:${V.circeParser}",
+    ivy"io.circe::circe-yaml:${V.circeYaml}",
+    ivy"co.fs2::fs2-io:${V.fs2}"
   )
 
   def pomSettings = PomSettings(
@@ -34,6 +35,6 @@ object `package` extends RootModule with ScalaModule with PublishModule {
   )
 
   object test extends ScalaTests with TestModule.Munit {
-    def ivyDeps = Agg(ivy"org.scalameta::munit:${Ver.munit}")
+    def ivyDeps = Agg(ivy"org.scalameta::munit:${V.munit}")
   }
 }

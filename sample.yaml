@@ -8,6 +8,7 @@ config:
   wacc_role: "_WH_{env}_{wh}_{acc}"
   fn_role: "RL_{env}_{role}"
   app_id: "APP_{env}_{app}"
+  cpool: "CP_{cp}"
 
 options:
   create_users: true

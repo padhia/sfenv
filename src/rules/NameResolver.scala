@@ -12,6 +12,7 @@ trait NameResolver:
   def wacc(wh: String, acc: String): String
   def fn(rl: String): String
   def app(app: String): String
+  def cp(cp: String): String
 
 object NameResolver:
   def makeUsing(cfg: Config, envName: String): NameResolver =
@@ -31,3 +32,4 @@ object NameResolver:
       override def wacc(wh: String, acc: String): String             = sub(wacc_role, "wh" -> wh, "acc" -> acc)
       override def fn(rl: String): String                            = sub(fn_role, "role" -> rl)
       override def app(app: String): String                          = sub(app_id, "app" -> app)
+      override def cp(cp: String): String                            = sub(cpool_, "cp" -> cp)

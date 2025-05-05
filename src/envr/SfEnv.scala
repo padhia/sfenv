@@ -23,6 +23,7 @@ case class SfEnv(
     imports: List[Import],
     databases: List[Database],
     warehouses: List[Warehouse],
+    computePools: List[ComputePool],
     roles: List[Role],
     users: List[UserId],
     createUsers: Boolean,
@@ -34,8 +35,9 @@ case class SfEnv(
     given SqlObj[Database] = Database.sqlObj(secAdm)
 
     imports.create ++
-      databases.create ++
+      computePools.create ++
       warehouses.create ++
+      databases.create ++
       roles.create ++
       users.create
 
@@ -43,8 +45,9 @@ case class SfEnv(
     given SqlObj[Database] = Database.sqlObj(secAdm)
 
     imports.alter(old.imports) ++
-      databases.alter(old.databases) ++
+      computePools.alter(old.computePools) ++
       warehouses.alter(old.warehouses) ++
+      databases.alter(old.databases) ++
       roles.alter(old.roles) ++
       users.alter(old.users)
 

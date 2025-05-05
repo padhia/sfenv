@@ -18,7 +18,8 @@ case class Rules(
     warehouses: Option[Map[String, Warehouse]],
     roles: Option[Map[String, Role]],
     apps: Option[Map[String, UserId]],
-    users: Option[Map[String, UserId]]
+    users: Option[Map[String, UserId]],
+    compute_pools: Option[Map[String, ComputePool]]
 ) derives Decoder:
 
   def resolve(envName: String, onlyFuture: Option[Boolean], drops: Option[ProcessDrops]): SfEnv =
@@ -34,6 +35,7 @@ case class Rules(
       imports = imports.mapRbac((n, o) => o.resolve(n)),
       databases = databases.mapRbac((n, o) => o.resolve(n)),
       warehouses = warehouses.mapRbac((n, o) => o.resolve(n)),
+      computePools = compute_pools.mapRbac((n, o) => o.resolve(n)),
       roles = roles.mapRbac((n, o) => o.resolve(n)),
       users = apps.mapRbac(((n, o) => o.resolve(nr.app(n)))) ++ users.mapRbac((n, o) => o.resolve(n)),
       createUsers = options.flatMap(_.create_users).getOrElse(true),
