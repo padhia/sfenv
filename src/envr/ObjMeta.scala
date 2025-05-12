@@ -14,7 +14,7 @@ case class ObjMeta(props: Props, tags: Map[String, String], comment: Option[Stri
     val c = comment.commentToStrSeq
 
     val ddl = (p ++ t ++ c).map(x => s" $x").mkString_("")
-    if ddl.length <= 80 then ddl else (p ++ t ++ c).map(x => s"\n    $x").mkString_("") // try to avaoid long DDL texts
+    if ddl.length <= 80 then ddl else (p ++ t ++ c).map(x => s"\n    $x").mkString_("") // try to avoid long DDL texts
 
   def alter(prev: ObjMeta): Chain[String] =
     val propChgs =

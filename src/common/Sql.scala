@@ -62,14 +62,13 @@ enum Sql:
     case ObjGrant(t, n, g, p, r) =>
       if p.isEmpty then Chain.empty
       else
-        val grant  = if r then "REVOKE" else "GRANT"
-        val to     = if r then "FROM" else "TO"
-        val plural = if t.endsWith("Y") then t.stripSuffix("Y") + "IES" else t + "S"
+        val (grant, to)  = if r then ("REVOKE", "FROM") else ("GRANT", "TO")
+        val ts = if t.endsWith("Y") then t.stripSuffix("Y") + "IES" else t + "S"
 
         t match
           case "DATABASE" | "SCHEMA" | "WAREHOUSE" => Chain(s"$grant ${p.mkString(", ")} ON $t $n $to ${g.role}")
           case _ =>
-            def objGrant(scope: String) = s"$grant ${p.mkString(", ")} ON $scope $plural IN SCHEMA $n $to ${g.role}"
+            def objGrant(scope: String) = s"$grant ${p.mkString(", ")} ON $scope $ts IN SCHEMA $n $to ${g.role}"
             Chain(objGrant("FUTURE")) ++ (if onlyFuture then Chain.empty else Chain(objGrant("ALL")))
 
 object Sql:
@@ -79,7 +78,7 @@ object Sql:
     *   - if more than one consecutive statements use the same role, remove redundant USE ROLE stateents
     *
     * @return
-    *   Chain of tuple containing Opetion Admin ID and the original Sql
+    *   Chain of tuple containing Optional Admin-role and the original Sql
     */
   def usingRole[F[_]]: Pipe[F, Sql, (Option[SqlAdmin], Sql)] = xs =>
     def setRole(p: Option[Sql], c: Sql) =
