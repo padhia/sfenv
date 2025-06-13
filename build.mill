@@ -3,7 +3,7 @@ import mill.scalalib._
 import mill.scalalib.publish._
 
 object V {
-  val scala       = "3.6.4"
+  val scala       = "3.7.0"
   val circeParser = "0.14.13"
   val circeYaml   = "0.16.0"
   val decline     = "2.5.0"

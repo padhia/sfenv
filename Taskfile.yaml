@@ -7,6 +7,12 @@ tasks:
       - mill launcher
       - ln -fs "$PWD/out/launcher.dest/run" "$HOME/.local/bin/${PWD##*/}"
 
+  rebuild:
+    aliases: [rb]
+    cmds:
+      - cmd: rm -rf out/
+      - task: build
+
   update:
     aliases: [u]
     cmds:
@@ -29,4 +35,4 @@ tasks:
 
   clean:
     cmds:
-      - rm -rf .bloop/ .metals/ out/
+      - rm -rf .bloop/ .metals/ out/ ~/.ivy2/local/org.padhia/sfenv-*
