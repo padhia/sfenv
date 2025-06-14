@@ -7,10 +7,18 @@ type ObjGrants = Map[ObjType, Grantables]
 type AccRoles  = Map[RoleName, ObjGrants]
 
 object AccRoles:
+  given CDA[AccRoles]:
+    extension (obj: AccRoles)
+      override def create: Chain[SqlStmt] = ???
+      override def drop: Chain[SqlStmt] = ???
+      override def sameId(other: AccRoles): Boolean = ???
+      override def updatable(old: AccRoles): Boolean = ???
+      override def update(old: AccRoles): Chain[SqlStmt] = ???
+
   def sqlOperable(objName: String, dbName: String = "") =
     new SqlOperable[AccRoles]:
       private def genRole(role: RoleName, opm: ObjGrants) =
-        Sql.CreateRole(role, ObjMeta.empty) +:
+        Sql.CreateRole(role, ObjMeta()) +:
           Chain.fromIterableOnce(opm).flatMap((ot, gs) => gs.grant(ot, if ot == "DATABASE" then dbName else objName, role))
 
       private def ungenRole(role: RoleName, opm: ObjGrants) =

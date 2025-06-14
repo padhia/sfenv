@@ -1,6 +1,5 @@
 package sfenv
 package envr
-import cats.data.Chain
 
 case class Warehouse(name: String, meta: ObjMeta, accRoles: AccRoles)
 

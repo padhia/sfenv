@@ -9,6 +9,7 @@ case class Schema(x: Schema.Aux, props: Props):
   export x.*
   def resolve(dbName: String, schName: String)(using n: NameResolver) =
     envr.Schema(
+      db = n.db(dbName),
       name = n.sch(dbName, schName),
       transient = transient.getOrElse(false),
       managed = managed.getOrElse(false),

@@ -13,6 +13,6 @@ case class Config(
     wacc_role: String,
     fn_role: String,
     app_id: String,
-    cpool: Option[String]
+    cpool: Option[String] = None
 ) derives Decoder:
   def cpool_ = cpool.getOrElse("CP_{cp}")

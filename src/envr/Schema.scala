@@ -5,18 +5,45 @@ import cats.data.Chain
 
 import Sql.*
 
-case class Schema(name: String, transient: Boolean, managed: Boolean, meta: ObjMeta, accRoles: AccRoles):
-  def kind = if transient then "TRANSIENT SCHEMA" else "SCHEMA"
-  def fullName(db: String) = s"$db.$name"
+case class Schema(db: String, name: String, transient: Boolean, managed: Boolean, meta: ObjMeta, accRoles: AccRoles):
+  def kind       = if transient then "TRANSIENT SCHEMA" else "SCHEMA"
+  def isReserved = name.toLowerCase == "public" || name.toLowerCase == "information_schema"
+  def fullName   = s"$db.$name".toUpperCase()
 
 object Schema:
-  def sqlOp(dbName: String) =
-    given SfObj[Schema] with
-      extension (obj: Schema) def id: SfObjId = SfObjId(obj.name)
-      def genSql(obj: SqlOp[Schema]): Chain[SqlStmt] = obj match
-        case SqlOp.Create(sch)   => Chain(SqlStmt.createObj(sch.kind, sch.fullName(dbName), sch.meta))
-        case SqlOp.Drop(sch)     => Chain(SqlStmt.dropObj("SCHEMA", sch.fullName(dbName)))
-        case SqlOp.Alter(sch, _) => Chain(SqlStmt.createObj(sch.kind, sch.fullName(dbName), sch.meta))
+  import AccRoles.given
+
+  extension (x: String) def sql = SqlStmt(Admin.Sys, x)
+
+  given CDA[Schema]:
+    extension (sch: Schema)
+      override def create: Chain[SqlStmt] =
+        val createDdl =
+          if sch.isReserved then Chain.empty
+          else
+            val ddl = List(
+              Some("CREATE"),
+              Option.when(sch.transient)("TRANSIENT"),
+              Some(s"SCHEMA ${sch.fullName}"),
+              Option.when(sch.managed)("WITH MANAGED ACCESS"),
+              sch.meta.toText
+            ).flatten.mkString(" ").sql
+            Chain(ddl)
+
+        createDdl ++ sch.accRoles.create
+
+      override def drop: Chain[SqlStmt] =
+        summon[CDA[AccRoles]].drop(sch.accRoles)
+          ++ (if sch.isReserved then Chain.empty else Chain(s"DROP SCHEMA ${sch.fullName}".sql))
+      override def sameId(other: Schema): Boolean      = sch.fullName == other.fullName
+      override def updatable(old: Schema): Boolean     = sch.transient == old.transient
+      override def update(old: Schema): Chain[SqlStmt] =
+        val managed =
+          if sch.managed != old.managed then Chain(s"${if sch.managed then "ENABLE" else "DISABLE"} MANAGED ACCESS")
+          else Chain.empty
+
+        (managed ++ sch.meta.toText(old.meta)).map(x => s"ALTER SCHEMA IF EXISTS ${sch.fullName} $x".sql)
+          ++ sch.accRoles.update(old.accRoles)
 
   def sqlObj(dbName: String) =
     new SqlObj[Schema]:
