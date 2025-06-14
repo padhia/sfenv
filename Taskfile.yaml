@@ -1,6 +1,10 @@
-version: '3'
+version: "3"
 
 tasks:
+  init:
+    cmds:
+      - mill --bsp-install
+
   build:
     aliases: [b]
     cmds:
@@ -16,7 +20,7 @@ tasks:
   rebuild:
     aliases: [rb]
     cmds:
-      - cmd: rm -rf out/
+      - cmd: rm -rf out/ ~/.ivy2/local/org.padhia/sfenv_*
       - task: build
 
   update:
@@ -29,16 +33,6 @@ tasks:
     cmds:
       - mill test
 
-  testonly:
-    aliases: [to]
-    cmds:
-      - mill test.testOnly
-
-  sample:
-    aliases: [rr]
-    cmds:
-      - mill run ./sample.yaml | bat --wrap=never -l sql
-
   clean:
     cmds:
-      - rm -rf .bloop/ .metals/ out/ ~/.ivy2/local/org.padhia/sfenv-*
+      - rm -rf .bloop/ .bsp/ .metals/ out/ ~/.ivy2/local/org.padhia/sfenv_*
