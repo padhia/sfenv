@@ -21,7 +21,10 @@ object Database:
           db.meta.toText,
         ).flatten.mkString(" ")
 
-        Chain(ddl.sql)
+        Chain(
+          ddl.sql,
+          SqlStmt(Admin.Sys, (_: String, sec: String) => s"GRANT USAGE, CREATE DATABASE ROLE ON DATABASE ${db.name} TO ROLE $sec")
+        )
       override def update(old: Database): Chain[SqlStmt] = Chain("ALTER DATABASE IF EXISTS".sql)
       override def updatable(old: Database): Boolean = db.transient == old.transient
       override def drop: Chain[SqlStmt] = Chain(s"DROP DATABASE IF EXISTS ${db.name}".sql)
