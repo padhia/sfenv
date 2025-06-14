@@ -1,6 +1,8 @@
 package sfenv
 
-case class SqlStmt(use: Admin, text: String, hasPast: Boolean = false)
+type FromRole = (String, String) => String
+
+case class SqlStmt(use: Admin, text: String | FromRole, hasPast: Boolean = false)
 
 // object SqlStmt:
 //   def createObj(kind: String, name: String, meta: ObjMeta, options: String*): SqlStmt =

@@ -7,13 +7,24 @@ type ObjGrants = Map[ObjType, Grantables]
 type AccRoles  = Map[RoleName, ObjGrants]
 
 object AccRoles:
-  given CDA[AccRoles]:
-    extension (obj: AccRoles)
-      override def create: Chain[SqlStmt] = ???
-      override def drop: Chain[SqlStmt] = ???
-      override def sameId(other: AccRoles): Boolean = ???
-      override def updatable(old: AccRoles): Boolean = ???
-      override def update(old: AccRoles): Chain[SqlStmt] = ???
+  def cda(objName: String, db: String = "") =
+    new CDA[AccRoles]:
+      extension (obj: AccRoles)
+        override def create: Chain[SqlStmt] =
+          obj.toList.flatMap: (r, ogm) =>
+            ogm.toList.flatMap: (ot, gr) =>
+              gr match
+                case Grantables.Roles(rs) => rs
+                case Grantables.Privileges(ps) =>
+
+
+          SqlStmt(Admin.Sec, s"CREATE DATABASE ROLE IF NOT EXISTS $objName") +:
+            Chain.fromIterableOnce(opm).flatMap((ot, gs) => gs.grant(ot, if ot == "DATABASE" then dbName else objName, role))
+
+        override def drop: Chain[SqlStmt] = ???
+        override def sameId(other: AccRoles): Boolean = ???
+        override def updatable(old: AccRoles): Boolean = ???
+        override def update(old: AccRoles): Chain[SqlStmt] = ???
 
   def sqlOperable(objName: String, dbName: String = "") =
     new SqlOperable[AccRoles]:
