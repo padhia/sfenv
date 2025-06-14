@@ -5,7 +5,6 @@ import io.circe.*
 import cats.data.Chain
 import cats.data.Validated
 import cats.kernel.Eq
-import cats.syntax.all.*
 
 import com.monovore.decline.Argument
 

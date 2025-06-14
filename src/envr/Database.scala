@@ -3,19 +3,29 @@ package envr
 
 import cats.data.Chain
 
-import Sql.*
 import SqlOperable.given
 
 case class Database(name: String, transient: Boolean, meta: ObjMeta, schemas: List[Schema]):
   def kind = if transient then "TRANSIENT DATABASE" else "DATABASE"
 
 object Database:
-  given SfObj[Database] with
-    extension (obj: Database) def id: SfObjId = SfObjId(obj.name)
-    def genSql(obj: SqlOp[Database]): Chain[SqlStmt] = obj match
-      case SqlOp.Create(db)   => Chain(SqlStmt.createObj(db.kind, db.name, db.meta))
-      case SqlOp.Drop(db)     => Chain(SqlStmt.dropObj("DATABASE", db.name))
-      case SqlOp.Alter(db, _) => Chain(SqlStmt.createObj(db.kind, db.name, db.meta))
+  extension (x: String) def sql = SqlStmt(Admin.Sys, x)
+
+  given CDA[Database]:
+    extension (db: Database)
+      override def create: Chain[SqlStmt] =
+        val ddl = List(
+          Some("CREATE"),
+          Option.when(db.transient)("TRANSIENT"),
+          Some(s"DATABASE IF NOT EXISTS ${db.name}"),
+          db.meta.toText,
+        ).flatten.mkString(" ")
+
+        Chain(ddl.sql)
+      override def update(old: Database): Chain[SqlStmt] = Chain("ALTER DATABASE IF EXISTS".sql)
+      override def updatable(old: Database): Boolean = db.transient == old.transient
+      override def drop: Chain[SqlStmt] = Chain(s"DROP DATABASE IF EXISTS ${db.name}".sql)
+      override def sameId(other: Database): Boolean = db.name == other.name
 
   def sqlObj(secAdm: RoleName) =
     new SqlObj[Database]:

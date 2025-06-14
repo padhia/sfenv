@@ -3,8 +3,6 @@ package envr
 
 import cats.data.Chain
 
-import Sql.*
-
 case class Role(name: RoleName, accRoles: List[RoleName], meta: ObjMeta):
   def rolePairs = accRoles.map((_, name))
 

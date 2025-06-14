@@ -15,15 +15,14 @@ class ObjMetaTests extends FunSuite:
   def sqls(xs: Chain[Sql]) = xs.flatMap(_.texts(sysAdm, true)).toList
 
   test("toString - props"):
-    val testOM   = ObjMeta(testProps)
-    val expected = " STR_PROP = STR_VAL NUM_PROP = 2 BOOL_PROP = TRUE"
+    val actual   = ObjMeta(testProps).toString()
+    val expected = "STR_PROP = STR_VAL NUM_PROP = 2 BOOL_PROP = TRUE"
 
-    assert(clue(testOM.toString()) == expected)
+    assert(clue(actual) == clue(expected))
 
   test("toString - long"):
     val testOM = ObjMeta(testProps, Some(tags), comment)
-    val expected = """|
-                      |    STR_PROP = STR_VAL
+    val expected = """|STR_PROP = STR_VAL
                       |    NUM_PROP = 2
                       |    BOOL_PROP = TRUE
                       |    WITH TAG TAG1 = 'tag value 1', TAG2 = 'tag value 2'

@@ -3,8 +3,6 @@ package envr
 
 import cats.data.Chain
 
-import Sql.*
-
 case class UserId(name: String, roles: List[RoleName], meta: ObjMeta)
 
 object UserId:

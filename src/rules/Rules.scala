@@ -3,8 +3,6 @@ package rules
 
 import io.circe.*
 
-import cats.syntax.all.*
-
 import envr.SfEnv
 
 type Tags    = Option[Map[String, String]]

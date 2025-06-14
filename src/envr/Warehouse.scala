@@ -1,8 +1,6 @@
 package sfenv
 package envr
 
-import Sql.*
-
 case class Warehouse(name: String, meta: ObjMeta, accRoles: AccRoles)
 
 object Warehouse:

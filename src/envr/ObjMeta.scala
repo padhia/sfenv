@@ -6,44 +6,36 @@ import cats.syntax.all.*
 
 case class ObjMeta(props: Props, tags: Map[String, String], comment: Option[String]):
   import ObjMeta.*
-  import Props.propsToStrSeq
+  import Props.*
 
-  override def toString(): String =
-    val p = props.propsToStrSeq
-    val t = tags.asTagList
-    val c = comment.commentToStrSeq
+  def toText: Option[String] = (props.propsToStrSeq ++ tags.asTagList ++ comment.commentToStrSeq).wrap
 
-    val ddl = (p ++ t ++ c).map(x => s" $x").mkString_("")
-    if ddl.length <= 80 then ddl else (p ++ t ++ c).map(x => s"\n    $x").mkString_("") // try to avoid long DDL texts
+  def toText(old: ObjMeta): Chain[String] =
+    val (setProps, unsetProps) = props.diff(old.props)
 
-  def alter(prev: ObjMeta): Chain[String] =
-    val propChgs =
-      import Props.toChain
-      val set =
-        val xs = props.filterNot((k, v) => prev.props.get(k) == Some(v)).toChain
-        if xs.isEmpty then xs else Chain("SET " + xs.mkString_(", "))
-      val unset =
-        val xs = prev.props.keySet -- props.keySet
-        if xs.isEmpty then Chain.empty else Chain("UNSET " + xs.mkString(", "))
-      set ++ unset
+    val setTags   = tagsToStrSeq(tags -- old.tags.keys).wrap("SET TAG")
+    val unsetTags = Chain.fromSeq((old.tags -- tags.keys).keys.toSeq).wrap("UNSET TAG")
 
-    val commentChgs = (comment, prev.comment) match
-      case (Some(x), Some(y)) => if x == y then Chain.empty else Chain(s"SET COMMENT = '$x'")
-      case (Some(x), None)    => Chain(s"SET COMMENT = '$x'")
-      case (None, Some(_))    => Chain(s"UNSET COMMENT")
-      case (None, None)       => Chain.empty
+    val setComment   = Chain.fromOption(Option.unless(this.comment == old.comment)(this.comment).flatten)
+    val unsetComment = Chain.fromOption(Option.when(this.comment != old.comment && this.comment.isEmpty)("COMMENT"))
 
-    propChgs ++ commentChgs
+    Chain(
+      (setProps ++ setComment).wrap("SET"),
+      (unsetProps ++ unsetComment).wrap("UNSET"),
+      setTags,
+      unsetTags
+    ).collect { case Some(x) => x }
+
+  override def toString(): String = toText.getOrElse("")
 
   def alter(objType: String, objName: String, old: ObjMeta): Chain[Sql] =
     def emit(xs: Chain[String], verb: String) =
       if xs.isEmpty then Chain.empty
       else Chain(Sql.AlterObj(objType, objName, s" $verb ${xs.mkString_(", ")}"))
 
-    val setProps   = (props.filterNot((k, v) => old.props.get(k) == Some(v))).propsToStrSeq
-    val unsetProps = Chain.fromSeq((old.props -- props.keys).keys.toSeq)
-    val setTags    = tagsToStrSeq(tags -- old.tags.keys)
-    val unsetTags  = Chain.fromSeq((old.tags -- tags.keys).keys.toSeq)
+    val (setProps, unsetProps) = props.diff(old.props)
+    val setTags                = tagsToStrSeq(tags -- old.tags.keys)
+    val unsetTags              = Chain.fromSeq((old.tags -- tags.keys).keys.toSeq)
 
     val setComment   = if comment == old.comment then Chain.empty else comment.commentToStrSeq
     val unsetComment = if comment.isEmpty && old.comment.isDefined then Chain("COMMENT") else Chain.empty
@@ -54,13 +46,15 @@ case class ObjMeta(props: Props, tags: Map[String, String], comment: Option[Stri
       emit(unsetTags, "UNSET TAG")
 
 object ObjMeta:
+  extension (xs: Chain[String])
+    def wrap: Option[String] = Option.unless(xs.isEmpty)(xs.mkString_(if xs.mkString_(" ").length() <= 80 then " " else "\n    "))
+    def wrap(pfx: String): Option[String] = xs.wrap.map(x => s"$pfx $x")
+
   def apply(props: Props = Props.empty, tags: Map[String, String] = Map.empty, comment: Option[String] = None): ObjMeta =
     new ObjMeta(props.map((k, v) => (k.toUpperCase, v)), tags.map((k, v) => (k.toUpperCase, v)), comment)
 
   def apply(props: Props, tags: Option[Map[String, String]], comment: Option[String]): ObjMeta =
     apply(props, tags.getOrElse(Map.empty), comment)
-
-  def empty = apply()
 
   extension (x: Option[String]) def commentToStrSeq = Chain.fromOption(x).map(y => s"COMMENT = '$y'")
   extension (xs: Map[String, String])
