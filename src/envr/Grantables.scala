@@ -3,6 +3,12 @@ package envr
 
 import cats.data.Chain
 
+enum Permission:
+  case Role(value: RoleName)
+  case Priv(value: String)
+
+object Permission:
+  def grant
 enum Grantables:
   case Roles(rs: List[RoleName])
   case Privileges(ps: List[String])

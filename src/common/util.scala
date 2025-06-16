@@ -52,3 +52,5 @@ extension [A: Eq](x: Chain[A])
       y.filterNot(x.contains(_)).map(x => (None, Some(x)))
 
 extension [A: Eq](x: List[A]) def merge(y: List[A]): Chain[(Option[A], Option[A])] = Chain.fromSeq(x).merge(Chain.fromSeq(y))
+
+extension [T](xs: List[T]) def --(ys: List[T]) = xs.filterNot(ys.contains(_))

@@ -3,13 +3,13 @@ package envr
 
 import cats.data.Chain
 
-case class ObjGrant(objType: String, objName: String, grantee: RoleName, privileges: List[String]):
-  def grant: Chain[SqlStmt]  = toSql("GRANT", "TO")
-  def revoke: Chain[SqlStmt] = toSql("REVOKE", "FROM")
+case class ObjGrant(objType: String, objName: String, privileges: List[String]):
+  def grant(grantee: RoleName): Chain[SqlStmt]  = toSql("GRANT", "TO", grantee)
+  def revoke(grantee: RoleName): Chain[SqlStmt] = toSql("REVOKE", "FROM", grantee)
 
-  private def toSql(grant: String, to: String): Chain[SqlStmt] = toSql(grant, to, privileges)
+  private def toSql(grant: String, to: String, grantee: RoleName): Chain[SqlStmt] = toSql(grant, to, grantee, privileges)
 
-  private def toSql(grant: String, to: String, privileges: List[String]): Chain[SqlStmt] =
+  private def toSql(grant: String, to: String, grantee: RoleName, privileges: List[String]): Chain[SqlStmt] =
     if privileges.isEmpty then Chain.empty
     else
       val objTypes = if objType.endsWith("Y") then objType.stripSuffix("Y") + "IES" else objName + "S"
@@ -24,15 +24,16 @@ case class ObjGrant(objType: String, objName: String, grantee: RoleName, privile
         )
 
 object ObjGrant:
-  given CDA[ObjGrant]:
-    extension (obj: ObjGrant)
-      override def create: Chain[SqlStmt]           = obj.grant
-      override def drop: Chain[SqlStmt]             = obj.revoke
-      override def sameId(other: ObjGrant): Boolean =
-        obj.objType == other.objType && obj.objName == other.objName && obj.grantee == other.grantee
-      override def updatable(old: ObjGrant): Boolean     = true
-      override def update(old: ObjGrant): Chain[SqlStmt] =
-        if obj.privileges == old.privileges then Chain.empty
-        else
-          obj.toSql("GRANT", "TO", obj.privileges.filterNot(p => old.privileges.contains(p))) ++
-            obj.toSql("REVOKE", "FROM", old.privileges.filterNot(p => obj.privileges.contains(p)))
+  def make(grantee: RoleName) =
+    new CDA[ObjGrant]:
+      extension (obj: ObjGrant)
+        override def create: Chain[SqlStmt]            = obj.grant(grantee)
+        override def drop: Chain[SqlStmt]              = obj.revoke(grantee)
+        override def sameId(other: ObjGrant): Boolean  = obj.objType == other.objType && obj.objName == other.objName
+        override def updatable(old: ObjGrant): Boolean = true
+
+        override def update(old: ObjGrant): Chain[SqlStmt] =
+          if obj.privileges == old.privileges then Chain.empty
+          else
+            obj.toSql("GRANT", "TO", grantee, obj.privileges -- old.privileges) ++
+              obj.toSql("REVOKE", "FROM", grantee, old.privileges -- obj.privileges)

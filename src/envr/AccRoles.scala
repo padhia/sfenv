@@ -14,12 +14,12 @@ object AccRoles:
           obj.toList.flatMap: (r, ogm) =>
             ogm.toList.flatMap: (ot, gr) =>
               gr match
-                case Grantables.Roles(rs) => rs
-                case Grantables.Privileges(ps) =>
+                case Grantables.Roles(rs) => s"GRANT "
+                case Grantables.Privileges(ps) => ps
 
 
-          SqlStmt(Admin.Sec, s"CREATE DATABASE ROLE IF NOT EXISTS $objName") +:
-            Chain.fromIterableOnce(opm).flatMap((ot, gs) => gs.grant(ot, if ot == "DATABASE" then dbName else objName, role))
+            SqlStmt(Admin.Sec, s"CREATE DATABASE ROLE IF NOT EXISTS $objName") +:
+              Chain.fromIterableOnce(ogm).flatMap((ot, gs) => gs.grant(ot, if ot == "DATABASE" then db else objName, role))
 
         override def drop: Chain[SqlStmt] = ???
         override def sameId(other: AccRoles): Boolean = ???
