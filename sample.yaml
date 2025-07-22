@@ -10,9 +10,6 @@ config:
   app_id: "APP_{env}_{app}"
   cpool: "CP_{cp}"
 
-options:
-  create_users: true
-
 imports:
   CUST:
     provider: CUSTP
@@ -138,6 +135,11 @@ users:
     default_namespace: EDW.CUSTOMER
     default_secondary_roles: ('ALL')
     comment: John Doe
+    roles:
+      - DBA
+      - SYSINFO
+  MOE:
+    create: false  # do not create the user, except only generate permissions
     roles:
       - DBA
       - SYSINFO

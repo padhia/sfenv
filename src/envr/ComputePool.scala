@@ -3,8 +3,6 @@ package envr
 
 import cats.data.Chain
 
-import Sql.*
-
 case class ComputePool(name: String, meta: ObjMeta)
 
 object ComputePool:

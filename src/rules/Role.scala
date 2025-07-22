@@ -7,8 +7,13 @@ import envr.{Props, RoleName, SchWh}
 
 type SchWhRoles = Map[SchWh, String]
 
-case class Role(acc_roles: Option[SchWhRoles], env_acc_roles: Option[Map[EnvName, SchWhRoles]], tags: Tags, comment: Comment)
-    derives Decoder:
+case class Role(
+    acc_roles: Option[SchWhRoles],
+    env_acc_roles: Option[Map[EnvName, SchWhRoles]],
+    tags: Tags,
+    comment: Comment,
+    create: Option[Boolean],
+) derives Decoder:
 
   def resolve(name: String)(using n: NameResolver) =
     def mkRole(schWh: SchWh, acc: String) =
@@ -22,4 +27,9 @@ case class Role(acc_roles: Option[SchWhRoles], env_acc_roles: Option[Map[EnvName
       .map(_.toList.map(mkRole)) // map schwh roles to role names
       .getOrElse(List.empty)
 
-    envr.Role(RoleName.Account(n.fn(name)), accRoles, envr.ObjMeta(Props.empty, tags, comment = comment))
+    envr.Role(
+      RoleName.Account(n.fn(name)),
+      accRoles,
+      envr.ObjMeta(Props.empty, tags, comment = comment),
+      createObj = create.getOrElse(true)
+    )

@@ -11,7 +11,7 @@ case class Warehouse(x: Warehouse.Aux, props: Props):
     envr.Warehouse(
       name = n.wh(whName),
       meta = ObjMeta(props, tags, comment),
-      accRoles = acc_roles.map(_.resolve(whName)).getOrElse(Map.empty)
+      accRoles = acc_roles.map(_.resolve(whName)).getOrElse(Map.empty),
     )
 
 object Warehouse:

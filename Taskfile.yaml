@@ -7,6 +7,12 @@ tasks:
       - mill launcher
       - ln -fs "$PWD/out/launcher.dest/run" "$HOME/.local/bin/${PWD##*/}"
 
+  assembly:
+    aliases: [jar]
+    cmds:
+      - mill assembly
+      - ln -fs "$PWD/out/assembly.dest/out.jar" "$HOME/.local/bin/${PWD##*/}"
+
   rebuild:
     aliases: [rb]
     cmds:

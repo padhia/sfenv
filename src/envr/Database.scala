@@ -3,7 +3,6 @@ package envr
 
 import cats.data.Chain
 
-import Sql.*
 import SqlOperable.given
 
 case class Database(name: String, transient: Boolean, meta: ObjMeta, schemas: List[Schema]):

@@ -53,8 +53,6 @@ A YAML/JSON object containing *options* that control SQL code generation.
 
 ```yaml
 options:
-  create_users: true
-  create_roles: true
   only_futures: true
   drops: non-local
 ```
@@ -66,6 +64,7 @@ Notes:
   - Recommendation: enable this option if users are not externally managed
 - `create_roles` controls whether DDLs for managing *account-level roles* are generated or not.
   - Note that database-level roles are always generated when required
+- `create_warehouse` controls whether DDLs for managing *account-level roles* are generated or not.
 - `only_futures`: generate `ALL` in addition to `FUTURE` grants
 - `drops`: controls generation of `DROP` statements
   - `non-local`: generate `DROP` for objects that are not local (for example shares)
@@ -151,7 +150,7 @@ A schema is a YAML/JSON object that defines a database schema and has following 
 
 ## `warehouses`
 
-`warehouses` is a YAML/JSON object containing one or more warehouse names and definitions
+`warehouses` is a YAML/JSON object containing one or more warehouse names and definitions.
 
 **Example**
 
@@ -203,7 +202,7 @@ The above example when specified for a schema will
 - permissions are list of SQL privileges
 
 ## `roles`
-A YAML/JSON object containing one or more *functional role* names and their properties
+A YAML/JSON object containing one or more *functional role* names and their properties. A role definition can specify an optional attribute named `create`, which if set to `false` (default `true`), causes no DDL statements to be generated for the `ROLE`, but does generate DCL for any associated roles.
 
 ### functional roles
 
@@ -232,7 +231,7 @@ roles:
 ```
 
 ## `users`
-A YAML/JSON object that describes Snowflake user IDs
+A YAML/JSON object that describes Snowflake user IDs. A user definition can specify an optional attribute named `create`, which if set to `false` (default `true`), causes no DDL statements to be generated for the `USER`, but does generate DCL for any associated roles.
 
 **Example**
 
@@ -253,4 +252,4 @@ A *user* is an object mapping of name and its properties. Valid properties
 - references specified in the `default*` keys are expanded per regular patterns specified in `config` section
 
 ## `apps`
-Similar to `users` above except application IDs are created and are specific to an environment.
+Similar to `users` above except application IDs are created and can be specific to an environment.

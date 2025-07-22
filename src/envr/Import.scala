@@ -3,8 +3,6 @@ package envr
 
 import cats.data.Chain
 
-import Sql.*
-
 case class Import(name: String, provider: String, share: String, roles: List[RoleName])
 
 object Import:

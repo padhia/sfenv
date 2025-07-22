@@ -37,9 +37,8 @@ class UserTests extends FunSuite:
   test("skip creating users"):
     val actual =
       s"""|$config
-          |options:
-          |  create_users: false
           |$users
+          |    create: false
           |""".stripMargin
         .toRbac("DEV")
         .map(_.genSqls(None).toList.mkString)

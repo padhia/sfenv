@@ -3,9 +3,7 @@ package envr
 
 import cats.data.Chain
 
-import Sql.*
-
-case class Role(name: RoleName, accRoles: List[RoleName], meta: ObjMeta):
+case class Role(name: RoleName, accRoles: List[RoleName], meta: ObjMeta, createObj: Boolean):
   def rolePairs = accRoles.map((_, name))
 
 object Role:
@@ -34,12 +32,14 @@ object Role:
 
       override def create: Chain[Sql] =
         import role.*
-        Sql.CreateRole(name, meta) +: Chain.fromSeq(accRoles).map(ar => Sql.RoleGrant(ar, name))
+        val acc = Chain.fromSeq(accRoles).map(ar => Sql.RoleGrant(ar, name))
+        if createObj then Sql.CreateRole(name, meta) +: acc else acc
 
       override def unCreate =
         import role.*
-        Chain.fromSeq(accRoles).map(ar => Sql.RoleGrant(ar, name, true)) :+ Sql.DropRole(name)
+        val acc = Chain.fromSeq(accRoles).map(ar => Sql.RoleGrant(ar, name, true))
+        if createObj then acc :+ Sql.DropRole(name) else acc
 
       override def alter(old: Role): Chain[Sql] =
         Chain.fromSeq(role.accRoles).regrant(Chain.fromSeq(old.accRoles), role.name) ++
-          role.meta.alter(role.name.kind, role.name.roleName, old.meta)
+          (if role.createObj then role.meta.alter(role.name.kind, role.name.roleName, old.meta) else Chain.empty)

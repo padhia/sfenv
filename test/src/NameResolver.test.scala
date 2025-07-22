@@ -12,7 +12,8 @@ class NameResolverTest extends FunSuite:
     acc_role = "{sch}_{acc}",
     wacc_role = "_WH_{env}_{wh}_{acc}",
     fn_role = "RL_{env}_{role}",
-    app_id = "APP_{env}_{app}"
+    app_id = "APP_{env}_{app}",
+    cpool = Some("CP_{cp}"),
   )
 
   val nr = NameResolver.makeUsing(cfg, "DEV")

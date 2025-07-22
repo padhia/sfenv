@@ -22,7 +22,8 @@ case class UserId(x: UserId.Aux, props: Props):
     envr.UserId(
       name = name,
       roles = roles.getOrElse(List.empty).map(r => envr.RoleName.Account(n.fn(r))),
-      meta = ObjMeta(defaults ++ props, tags, comment)
+      meta = ObjMeta(defaults ++ props, tags, comment),
+      createObj = create.getOrElse(true)
     )
 
 object UserId:
@@ -32,7 +33,8 @@ object UserId:
       default_namespace: Option[Namespace],
       default_role: Option[String],
       tags: Tags,
-      comment: Comment
+      comment: Comment,
+      create: Option[Boolean],
   ) derives Decoder
 
   given Decoder[UserId] with

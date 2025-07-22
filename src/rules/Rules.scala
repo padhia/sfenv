@@ -3,8 +3,6 @@ package rules
 
 import io.circe.*
 
-import cats.syntax.all.*
-
 import envr.SfEnv
 
 type Tags    = Option[Map[String, String]]
@@ -38,8 +36,6 @@ case class Rules(
       computePools = compute_pools.mapRbac((n, o) => o.resolve(n)),
       roles = roles.mapRbac((n, o) => o.resolve(n)),
       users = apps.mapRbac(((n, o) => o.resolve(nr.app(n)))) ++ users.mapRbac((n, o) => o.resolve(n)),
-      createUsers = options.flatMap(_.create_users).getOrElse(true),
-      createRoles = options.flatMap(_.create_roles).getOrElse(true),
       drops = drops.orElse(options.flatMap(_.drop)).getOrElse(ProcessDrops.NonLocal),
       onlyFutures = onlyFuture.orElse(options.flatMap(_.only_futures)).getOrElse(false)
     )

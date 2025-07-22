@@ -24,7 +24,7 @@ import envr.SfEnv
 object Main
     extends CommandIOApp(
       name = "sfenv",
-      version = "0.1.1",
+      version = "0.1.2-SNAPSHOT",
       header = "Generate SQLs for declaratively managed Snowflake environments"
     ):
 

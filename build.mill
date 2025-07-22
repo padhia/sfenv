@@ -3,9 +3,9 @@ import mill.scalalib._
 import mill.scalalib.publish._
 
 object V {
-  val scala       = "3.7.0"
-  val circeParser = "0.14.13"
-  val circeYaml   = "0.16.0"
+  val scala       = "3.7.1"
+  val circeParser = "0.14.14"
+  val circeYaml   = "0.16.1"
   val decline     = "2.5.0"
   val fs2         = "3.12.0"
   val munit       = "1.1.1"
@@ -13,8 +13,8 @@ object V {
 
 object `package` extends RootModule with ScalaModule with PublishModule {
   def scalaVersion   = V.scala
-  def publishVersion = "0.1.1"
-  def scalacOptions  = Seq("-deprecation", "-Wunused:all", "-release", "17")
+  def publishVersion = "0.1.2-SNAPSHOT"
+  def scalacOptions  = Seq("-deprecation", "-Wunused:all", "-release", "11")
   def artifactName   = "sfenv"
   def mainClass      = Some("sfenv.Main")
 

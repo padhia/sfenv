@@ -26,8 +26,6 @@ case class SfEnv(
     computePools: List[ComputePool],
     roles: List[Role],
     users: List[UserId],
-    createUsers: Boolean,
-    createRoles: Boolean,
     drops: ProcessDrops,
     onlyFutures: Boolean
 ):
@@ -67,35 +65,10 @@ case class SfEnv(
     def formatSql(s: String) =
       if "^(CREATE|USE) ".r.findPrefixOf(s).isDefined then List("", s + ";") else List(s + ";")
 
-    def isUserSql(sql: Sql) =
-      import Sql.*
-      sql match
-        case CreateObj(k, _, _) => k == "USER"
-        case DropObj(k, _, _)   => k == "USER"
-        case AlterObj(k, _, _)  => k == "USER"
-        case _                  => false
-
-    def isRoleSql(sql: Sql) =
-      import Sql.*
-
-      extension (r: RoleName)
-        def isAccountRole: Boolean =
-          r match
-            case _: RoleName.Account => true
-            case _                   => false
-
-      sql match
-        case CreateRole(r, _) => r.isAccountRole
-        case DropRole(r)      => r.isAccountRole
-        case AlterRole(r, _)  => r.isAccountRole
-        case _                => false
-
     val stmts =
       prev
         .map(p => this.alter(p))
         .getOrElse(this.create) // generate a stream of Sqls from Rbac
-        .through(s => if createUsers then s else s.filter(!isUserSql(_)))
-        .through(s => if createRoles then s else s.filter(!isRoleSql(_)))
 
     def isDrop(x: Sql) =
       x match
