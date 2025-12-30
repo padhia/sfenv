@@ -20,7 +20,7 @@ import rules.{Options, Rules}
 object Main
     extends CommandIOApp(
       name = "sfenv",
-      version = "0.2.0-rc.1",
+      version = "0.2.0",
       header = "Generate SQLs for declaratively managed Snowflake environments"
     ):
 

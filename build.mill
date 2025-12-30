@@ -5,18 +5,21 @@ import mill.scalalib.*
 import mill.scalalib.publish.*
 
 object V:
-  val scala       = "3.7.2"
-  val circeParser = "0.14.14"
+  val scala       = "3.8.2"
+  val circeParser = "0.14.15"
   val circeYaml   = "0.16.1"
-  val decline     = "2.5.0"
-  val munit       = "1.1.1"
+  val decline     = "2.6.0"
+  val munit       = "1.2.3"
 
-object `package` extends ScalaModule with PublishModule:
-  def scalaVersion   = V.scala
-  def publishVersion = "0.2.0-rc.1"
-  def scalacOptions  = Seq("-deprecation", "-feature", "-Wunused:all", "-release", "11")
-  def artifactName   = "sfenv"
-  def mainClass      = Some("sfenv.Main")
+object `package` extends ScalaModule with PublishModule with NativeImageModule:
+  def scalaVersion      = V.scala
+  def publishVersion    = "0.2.0"
+  def scalacOptions     = Seq("-deprecation", "-feature", "-Wunused:all")
+  def artifactName      = "sfenv"
+  def mainClass         = Some("sfenv.Main")
+  def nativeImageName   = "sfenv"
+  def jvmVersion        = "graalvm-community:23.0.1"
+  def nativeImageOptions = Seq("--no-fallback")
 
   def mvnDeps = Seq(
     mvn"com.monovore::decline-effect:${V.decline}",

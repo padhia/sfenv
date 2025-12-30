@@ -8,8 +8,8 @@ tasks:
   build:
     aliases: [b]
     cmds:
-      - mill launcher
-      - ln -fs "$PWD/out/launcher.dest/run" "$HOME/.local/bin/${PWD##*/}"
+      - mill nativeImage
+      - ln -fs "$PWD/out/nativeImage.dest/native-executable" "$HOME/.local/bin/${PWD##*/}"
 
   assembly:
     aliases: [jar]
