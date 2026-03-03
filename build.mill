@@ -12,14 +12,12 @@ object V:
   val munit       = "1.2.3"
 
 object `package` extends ScalaModule with PublishModule with NativeImageModule:
-  def scalaVersion      = V.scala
-  def publishVersion    = "0.2.0"
-  def scalacOptions     = Seq("-deprecation", "-feature", "-Wunused:all")
-  def artifactName      = "sfenv"
-  def mainClass         = Some("sfenv.Main")
-  def nativeImageName   = "sfenv"
-  def jvmVersion        = "graalvm-community:23.0.1"
-  def nativeImageOptions = Seq("--no-fallback")
+  override def scalaVersion       = V.scala
+  override def publishVersion     = "0.2.0"
+  override def scalacOptions      = Seq("-deprecation", "-feature", "-Wunused:all")
+  override def artifactName       = "sfenv"
+  override def mainClass          = Some("sfenv.Main")
+  override def nativeImageOptions = Seq("--no-fallback", "-J--sun-misc-unsafe-memory-access=allow")
 
   def mvnDeps = Seq(
     mvn"com.monovore::decline-effect:${V.decline}",
