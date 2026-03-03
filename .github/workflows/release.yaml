@@ -33,6 +33,13 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - name: Setup GraalVM
+        uses: graalvm/setup-graalvm@v1
+        with:
+          java-version: "25"
+          distribution: "graalvm"
+          componenets: "native-image"
+
       - name: install mill (unix)
         if: matrix.os != 'windows'
         run: |
