@@ -13,7 +13,7 @@ object V:
 
 object `package` extends ScalaModule with PublishModule with NativeImageModule:
   override def scalaVersion       = V.scala
-  override def publishVersion     = "0.2.0"
+  override def publishVersion     = "0.2.1"
   override def scalacOptions      = Seq("-deprecation", "-feature", "-Wunused:all")
   override def artifactName       = "sfenv"
   override def mainClass          = Some("sfenv.Main")

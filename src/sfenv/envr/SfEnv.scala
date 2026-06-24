@@ -71,11 +71,11 @@ case class SfEnv(
     show"""|USE ROLE USERADMIN;
            |
            |CREATE ROLE IF NOT EXISTS ${secAdm};
-           |GRANT ${secAdm} TO ROLE USERADMIN;
+           |GRANT ROLE ${secAdm} TO ROLE USERADMIN;
            |GRANT CREATE ROLE ON ACCOUNT TO ${secAdm};
            |
            |CREATE ROLE IF NOT EXISTS ${sysAdm};
-           |GRANT ${sysAdm} TO ROLE SYSADMIN;
+           |GRANT ROLE ${sysAdm} TO ROLE SYSADMIN;
            |
            |USE ROLE SYSADMIN;
            |GRANT CREATE DATABASE ON ACCOUNT TO ${sysAdm};""".stripMargin
