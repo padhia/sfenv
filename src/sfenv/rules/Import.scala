@@ -1,11 +1,11 @@
 package sfenv
 package rules
 
-import io.circe.*
+import fabric.rw.*
 
 import cats.syntax.all.*
 
-case class Import(provider: Ident, share: Ident, roles: Option[List[Ident]]) derives Decoder
+case class Import(provider: Ident, share: Ident, roles: Option[List[Ident]]) derives RW
 
 object Import:
   given ObjMap[Import]:

@@ -1,7 +1,9 @@
 package sfenv
 package envr
 
-import io.circe.*
+import fabric.*
+import fabric.define.DefType
+import fabric.rw.{RW, RWException}
 
 import cats.Show
 import cats.syntax.all.*
@@ -26,5 +28,11 @@ object SchWh:
       case Schema(db, sch) => show"$db.$sch"
       case Warehouse(wh)   => wh.show
 
-  given KeyDecoder[SchWh]:
-    def apply(x: String) = SchWh.apply(x)
+  given RW[SchWh] = RW.from(
+    r = sw => str(sw.show),
+    w = j => {
+      val s = j.asString
+      apply(s).getOrElse(throw RWException(s"Invalid SchWh: '$s'"))
+    },
+    d = DefType.Str
+  )

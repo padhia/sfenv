@@ -1,7 +1,7 @@
 package sfenv
 package rules
 
-import io.circe.*
+import fabric.rw.*
 
 case class Config(
     secadm: Option[String] = None,
@@ -14,7 +14,7 @@ case class Config(
     fn_role: Option[String] = None,
     app_id: Option[String] = None,
     cpool: Option[String] = None
-) derives Decoder:
+) derives RW:
 
   def resolver(envName: String): NameResolver =
     Config.Resolver(

@@ -1,10 +1,9 @@
 package sfenv
 package envr
-package test
 
 import munit.FunSuite
 
-class UserTests extends FunSuite:
+class UserSuite extends FunSuite:
   val user = User(
     Ident("jdoe"),
     User.Value(meta =
@@ -29,19 +28,14 @@ class UserTests extends FunSuite:
          |    DEFAULT_SECONDARY_ROLES = ('ALL')
          |    COMMENT = 'John Doe'""".stripMargin,
     )
-
-    assert(clue(user.create.sqls.length) == clue(1))
-    assert(clue(user.create.sqls) == clue(expected))
+    assertEquals(user.create.sqls, expected)
 
   test("skip create"):
     val user2 = user.copy(value = user.value.copy(createObj = false))
-
-    assert(clue(user2.create.sqls.length) == clue(0))
+    assertEquals(user2.create.sqls.length, 0)
 
   test("drop"):
-    val expected = List("DROP USER IF EXISTS JDOE")
-    assert(clue(user.drop.sqls.length) == clue(1))
-    assert(clue(user.drop.sqls) == clue(expected))
+    assertEquals(user.drop.sqls, List("DROP USER IF EXISTS JDOE"))
 
   test("alter"):
     val user2 = user.copy(value =
@@ -60,5 +54,4 @@ class UserTests extends FunSuite:
       "ALTER USER IF EXISTS JDOE SET DEFAULT_SECONDARY_ROLES = ()",
       "ALTER USER IF EXISTS JDOE UNSET COMMENT"
     )
-    val actual = user2.update(user).sqls
-    assert(clue(actual) == clue(expected))
+    assertEquals(user2.update(user).sqls, expected)

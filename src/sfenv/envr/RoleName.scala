@@ -1,8 +1,6 @@
 package sfenv
 package envr
 
-import io.circe.*
-
 import cats.Show
 import cats.kernel.Eq
 import cats.syntax.all.*
@@ -44,8 +42,3 @@ object RoleName:
       case (RoleName.Database(d1, r1), RoleName.Database(d2, r2)) => d1 == d2 && r1 == r2
       case (RoleName.Account(r1), RoleName.Account(r2))           => r1 == r2
       case _                                                      => false
-
-  given Decoder[RoleName] = summon[Decoder[String]].emap(x => apply(x))
-
-  given KeyDecoder[RoleName]:
-    def apply(x: String) = RoleName(x).toOption

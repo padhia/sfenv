@@ -1,7 +1,7 @@
 package sfenv
 package rules
 
-import io.circe.*
+import fabric.rw.*
 
 import cats.syntax.all.*
 
@@ -20,7 +20,7 @@ case class Role(
     tags: Option[Tags],
     comment: Option[SqlLiteral],
     create: Option[Boolean],
-) derives Decoder:
+) derives RW:
 
   def roleUsers(name: String)(using n: NameResolver): UserGrants =
     users.map(_.map(r => (Ident(name), n.fn(r.show)))).getOrElse(ListSet.empty)
@@ -38,9 +38,9 @@ object Role:
             case SchWh.Warehouse(wh)   => RoleName.Account(n.wacc(wh.show, acc))
 
         val accRoles: List[RoleName] = r.env_acc_roles
-          .flatMap(_.get(n.env))     // get environment specific roles
-          .orElse(r.acc_roles)       // if no environment, fall back to general roles
-          .map(_.toList.map(mkRole)) // map schwh roles to role names
+          .flatMap(_.get(n.env))
+          .orElse(r.acc_roles)
+          .map(_.toList.map(mkRole))
           .getOrElse(List.empty)
 
         (

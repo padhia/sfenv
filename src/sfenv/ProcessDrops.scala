@@ -1,21 +1,22 @@
 package sfenv
 
-import io.circe.*
+import fabric.*
+import fabric.define.DefType
+import fabric.rw.{RW, RWException}
 
-import cats.data.Validated
 import cats.syntax.show.*
 
 import com.monovore.decline.Argument
+import cats.data.Validated
 
 /** Processing option for DROP SQL statments.
   *   - All: retain all DROP SQLs
-  *   - NonLocal: comment out only DROP SQLs that may lead to data loss, i.e. databases (except Shares) and schemas
+  *   - NonLocal: comment out only DROP SQLs that may lead to data loss
   *   - Never: comment out all DROP SQLs
   */
 enum ProcessDrops:
   case All, NonLocal, Never
 
-  /** Returns a comment prefix string to be used before SQL statement */
   def useMask(isForeign: => Boolean) =
     this match
       case All      => false
@@ -34,5 +35,15 @@ object ProcessDrops:
     Validated.fromOption(ProcessDrops(x), "invalid drop option; choose from: 'all', 'non-local', 'none'").toValidatedNel
   )
 
-  given Decoder[ProcessDrops] =
-    summon[Decoder[String]].emap(x => apply(x).toRight(show"invalid drop option '$x'; choose from: 'all', 'non-local', 'none'"))
+  given RW[ProcessDrops] = RW.from(
+    r = pd => str(pd match
+      case All      => "all"
+      case NonLocal => "non-local"
+      case Never    => "none"
+    ),
+    w = j => {
+      val s = j.asString
+      apply(s).getOrElse(throw RWException(show"invalid drop option '$s'; choose from: 'all', 'non-local', 'none'"))
+    },
+    d = DefType.Str
+  )

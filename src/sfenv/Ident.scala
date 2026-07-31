@@ -1,6 +1,8 @@
 package sfenv
 
-import io.circe.*
+import fabric.*
+import fabric.define.DefType
+import fabric.rw.RW
 
 import cats.Show
 
@@ -13,7 +15,5 @@ case class Ident(value: String):
     case _         => false
 
 object Ident:
-  given Show[Ident]    = Show.show(_.canonical)
-  given Decoder[Ident] = summon[Decoder[String]].map(Ident.apply)
-  given KeyDecoder[Ident]:
-    override def apply(key: String): Option[Ident] = Some(Ident(key))
+  given Show[Ident] = Show.show(_.canonical)
+  given RW[Ident]   = RW.from(r = id => str(id.value), w = j => Ident(j.asString), d = DefType.Str)

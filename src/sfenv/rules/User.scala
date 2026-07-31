@@ -1,31 +1,42 @@
 package sfenv
 package rules
 
-import io.circe.*
+import fabric.*
+import fabric.define.DefType
+import fabric.rw.*
 
 import scala.collection.immutable.{ListMap, ListSet}
 
 import envr.{ObjMeta, UserGrants}
 
-case class User(x: User.Aux, props: Props):
-  export x.*
-
+case class User(
+    roles: Option[ListSet[String]],
+    default_warehouse: Option[String],
+    default_namespace: Option[Namespace],
+    default_role: Option[String],
+    tags: Option[Tags],
+    comment: Option[SqlLiteral],
+    create: Option[Boolean],
+    props: Props,
+):
   def userRoles(name: String)(using n: NameResolver): UserGrants =
     roles.map(_.map(r => (Ident(name), n.fn(r)))).getOrElse(ListSet.empty)
 
 object User:
-  case class Aux(
-      roles: Option[ListSet[String]],
-      default_warehouse: Option[String],
-      default_namespace: Option[Namespace],
-      default_role: Option[String],
-      tags: Option[Tags],
-      comment: Option[SqlLiteral],
-      create: Option[Boolean],
-  ) derives Decoder
-
-  given Decoder[User] with
-    def apply(c: HCursor) = summon[Decoder[Aux]].apply(c).map(User(_, Util.fromCursor[Aux](c)))
+  given RW[User] = RW.from(
+    r = _ => throw UnsupportedOperationException("User serialization not supported"),
+    w = json => User(
+      roles             = json.attr("roles").as[Option[ListSet[String]]],
+      default_warehouse = json.attr("default_warehouse").as[Option[String]],
+      default_namespace = json.attr("default_namespace").as[Option[Namespace]],
+      default_role      = json.attr("default_role").as[Option[String]],
+      tags              = json.attr("tags").as[Option[Tags]],
+      comment           = json.attr("comment").as[Option[SqlLiteral]],
+      create            = json.attr("create").as[Option[Boolean]],
+      props             = json.props[User],
+    ),
+    d = DefType.Json
+  )
 
   def objMap(f: String => Ident) =
     new ObjMap[User]:
@@ -44,7 +55,7 @@ object User:
           (
             f(k),
             envr.User.Value(
-              meta = ObjMeta(defaults ++ r.props, r.tags, r.comment),
+              meta      = ObjMeta(defaults ++ r.props, r.tags, r.comment),
               createObj = r.create.getOrElse(true)
             )
           )

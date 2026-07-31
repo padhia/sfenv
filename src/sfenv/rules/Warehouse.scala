@@ -1,20 +1,32 @@
 package sfenv
 package rules
 
-import io.circe.*
+import fabric.*
+import fabric.define.DefType
+import fabric.rw.*
 
 import scala.collection.immutable.ListMap
 
 import envr.ObjMeta
 
-case class Warehouse(x: Warehouse.Aux, props: Props):
-  export x.*
+case class Warehouse(
+    acc_roles: Option[AccRoles],
+    tags: Option[Tags],
+    comment: Option[SqlLiteral],
+    props: Props,
+)
 
 object Warehouse:
-  case class Aux(acc_roles: Option[AccRoles], tags: Option[Tags], comment: Option[SqlLiteral]) derives Decoder
-
-  given Decoder[Warehouse] with
-    def apply(c: HCursor) = summon[Decoder[Aux]](c).map(Warehouse(_, Util.fromCursor[Aux](c)))
+  given RW[Warehouse] = RW.from(
+    r = _ => throw UnsupportedOperationException("Warehouse serialization not supported"),
+    w = json => Warehouse(
+      acc_roles = json.attr("acc_roles").as[Option[AccRoles]],
+      tags      = json.attr("tags").as[Option[Tags]],
+      comment   = json.attr("comment").as[Option[SqlLiteral]],
+      props     = json.props[Warehouse],
+    ),
+    d = DefType.Json
+  )
 
   given ObjMap[Warehouse]:
     type Key   = Ident
@@ -25,7 +37,7 @@ object Warehouse:
         (
           n.wh(k),
           envr.Warehouse.Value(
-            meta = ObjMeta(r.props, r.tags, r.comment),
+            meta       = ObjMeta(r.props, r.tags, r.comment),
             accRoleMap = r.acc_roles.map(_.resolve(k)).getOrElse(ListMap.empty)
           )
         )

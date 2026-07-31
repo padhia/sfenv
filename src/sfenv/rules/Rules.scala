@@ -1,12 +1,11 @@
 package sfenv
 package rules
 
-import io.circe.*
-import io.circe.yaml.parser.parse
-
 import scala.collection.immutable.ListMap
 import scala.collection.immutable.ListSet
+import scala.util.Try
 
+import fabric.rw.*
 import envr.SfEnv
 import sfenv.envr.UserGrants
 
@@ -20,7 +19,7 @@ case class Rules(
     apps: Option[ListMap[String, User]],
     users: Option[ListMap[String, User]],
     compute_pools: Option[ListMap[String, ComputePool]]
-) derives Decoder:
+) derives RW:
 
   def resolve(envName: String): SfEnv =
     given nr: NameResolver = config.getOrElse(Config()).resolver(envName)
@@ -57,4 +56,5 @@ case class Rules(
     )
 
 object Rules:
-  def apply(x: String) = parse(x).flatMap(Decoder[rules.Rules].decodeJson(_))
+  def apply(x: String): Either[Throwable, Rules] =
+    Try(YamlParser(x).as[Rules]).toEither

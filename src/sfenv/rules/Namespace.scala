@@ -1,7 +1,9 @@
 package sfenv
 package rules
 
-import io.circe.*
+import fabric.*
+import fabric.define.DefType
+import fabric.rw.{RW, RWException}
 
 import cats.syntax.all.*
 
@@ -17,8 +19,20 @@ enum Namespace:
       case Database(db)    => PropVal(n.db(db))
 
 object Namespace:
-  given Decoder[Namespace] = Decoder.decodeString.emapTry: x =>
-    x.split("\\.") match
-      case Array(db, sch) => Success(Schema(db, sch))
-      case Array(wh)      => Success(Database(wh))
-      case _              => Failure(new Throwable(show"Invalid namespace '$x'; must be either <db> or <db>.<sch>"))
+  given RW[Namespace] = RW.from(
+    r = ns => str(ns match
+      case Schema(db, sch) => s"$db.$sch"
+      case Database(db)    => db
+    ),
+    w = j => {
+      val x = j.asString
+      (x.split("\\.") match
+        case Array(db, sch) => Success(Schema(db, sch))
+        case Array(wh)      => Success(Database(wh))
+        case _              => Failure(RuntimeException(show"Invalid namespace '$x'; must be either <db> or <db>.<sch>"))
+      ) match
+        case Success(v) => v
+        case Failure(e) => throw RWException(e.getMessage)
+    },
+    d = DefType.Str
+  )

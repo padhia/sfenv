@@ -1,7 +1,5 @@
 package sfenv
 
-import io.circe.Error
-
 import cats.effect.*
 import cats.effect.std.Console
 import cats.syntax.all.*
@@ -20,7 +18,7 @@ import rules.{Options, Rules}
 object Main
     extends CommandIOApp(
       name = "sfenv",
-      version = "0.2.0",
+      version = "0.2.5",
       header = "Generate SQLs for declaratively managed Snowflake environments"
     ):
 
@@ -93,6 +91,6 @@ object Main
       .map: prog =>
         def showError(s: String) = Console[IO].errorln(s).as(ExitCode.Error)
         prog.handleErrorWith:
-          case e: FileSystemException => showError(s"Error Opening File: ${e.getFile()}")         // input file couldn't be opened
-          case e: IOException         => showError(s"IO Error: ${e.getMessage()}")                // other generic IO errors
-          case e: Error               => showError(s"YAML/JSON Parsing Error: ${e.getMessage()}") // Circe errors
+          case e: FileSystemException => showError(s"Error Opening File: ${e.getFile()}") // input file couldn't be opened
+          case e: IOException         => showError(s"IO Error: ${e.getMessage()}")        // other generic IO errors
+          case e: Exception           => showError(s"YAML/JSON Parsing Error: ${e.getMessage()}")

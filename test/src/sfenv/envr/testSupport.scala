@@ -1,6 +1,5 @@
 package sfenv
 package envr
-package test
 
 import cats.data.Chain
 

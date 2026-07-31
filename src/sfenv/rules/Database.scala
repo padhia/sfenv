@@ -1,25 +1,34 @@
 package sfenv
 package rules
 
-import io.circe.*
-
 import scala.collection.immutable.ListMap
 
+import fabric.*
+import fabric.define.DefType
+import fabric.rw.*
 import envr.ObjMeta
 
-case class Database(x: Database.Aux, props: Props):
-  export x.*
+case class Database(
+    transient: Option[Boolean],
+    schemas: ListMap[String, Schema],
+    tags: Option[Tags],
+    comment: Option[SqlLiteral],
+    props: Props,
+)
 
 object Database:
-  case class Aux(
-      transient: Option[Boolean],
-      schemas: ListMap[String, Schema],
-      tags: Option[Tags],
-      comment: Option[SqlLiteral]
-  ) derives Decoder
-
-  given Decoder[Database] with
-    def apply(c: HCursor) = summon[Decoder[Aux]](c).map(Database(_, Util.fromCursor[Aux](c)))
+  given RW[Database] = RW.from(
+    r = _ => throw UnsupportedOperationException("Database serialization not supported"),
+    w = json =>
+      Database(
+        transient = json.attr("transient").as[Option[Boolean]],
+        schemas = json("schemas").as[ListMap[String, Schema]],
+        tags = json.attr("tags").as[Option[Tags]],
+        comment = json.attr("comment").as[Option[SqlLiteral]],
+        props = json.props[Database],
+      ),
+    d = DefType.Json
+  )
 
   given ObjMap[Database]:
     type Key   = Ident
