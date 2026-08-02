@@ -1,7 +1,7 @@
 package sfenv
 package rules
 
-import scala.collection.immutable.ListMap
+import scala.collection.immutable.SortedMap
 
 import fabric.*
 import fabric.define.DefType
@@ -10,7 +10,7 @@ import envr.ObjMeta
 
 case class Database(
     transient: Option[Boolean],
-    schemas: ListMap[String, Schema],
+    schemas: SortedMap[String, Schema],
     tags: Option[Tags],
     comment: Option[SqlLiteral],
     props: Props,
@@ -22,7 +22,7 @@ object Database:
     w = json =>
       Database(
         transient = json.attr("transient").as[Option[Boolean]],
-        schemas = json("schemas").as[ListMap[String, Schema]],
+        schemas = json("schemas").as[SortedMap[String, Schema]],
         tags = json.attr("tags").as[Option[Tags]],
         comment = json.attr("comment").as[Option[SqlLiteral]],
         props = json.props[Database],

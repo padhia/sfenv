@@ -22,11 +22,11 @@ class UserSuite extends FunSuite:
   test("create"):
     val expected = List(
       """|CREATE USER IF NOT EXISTS JDOE
-         |    DEFAULT_ROLE = RL_DEV_DBA
-         |    DEFAULT_WAREHOUSE = WH_DEV_LOAD
+         |    COMMENT = 'John Doe'
          |    DEFAULT_NAMESPACE = EDW_DEV.CUSTOMER
+         |    DEFAULT_ROLE = RL_DEV_DBA
          |    DEFAULT_SECONDARY_ROLES = ('ALL')
-         |    COMMENT = 'John Doe'""".stripMargin,
+         |    DEFAULT_WAREHOUSE = WH_DEV_LOAD""".stripMargin,
     )
     assertEquals(user.create.sqls, expected)
 

@@ -43,13 +43,13 @@ jobs:
       - name: install mill (unix)
         if: matrix.os != 'windows'
         run: |
-          curl -L https://repo1.maven.org/maven2/com/lihaoyi/mill-dist/1.1.2/mill-dist-1.1.2-mill.sh -o mill
+          curl -L https://repo1.maven.org/maven2/com/lihaoyi/mill-dist/1.1.7/mill-dist-1.1.7-mill.sh -o mill
           chmod +x mill
 
       - name: install mill (windows)
         if: matrix.os == 'windows'
         run: |
-          curl -L https://repo1.maven.org/maven2/com/lihaoyi/mill-dist/1.1.2/mill-dist-1.1.2-mill.bat -o mill.bat
+          curl -L https://repo1.maven.org/maven2/com/lihaoyi/mill-dist/1.1.7/mill-dist-1.1.7-mill.bat -o mill.bat
 
       - name: build native image (unix)
         if: matrix.os != 'windows'

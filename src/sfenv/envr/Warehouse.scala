@@ -4,7 +4,7 @@ package envr
 import cats.data.Chain
 import cats.syntax.all.*
 
-import scala.collection.immutable.ListMap
+import scala.collection.immutable.SortedMap
 
 import SqlStmt.*
 
@@ -14,7 +14,7 @@ case class Warehouse(name: Ident, value: Warehouse.Value):
 object Warehouse:
   import CDA.given
 
-  case class Value(meta: ObjMeta, accRoleMap: ListMap[RoleName, AccRole.Value]):
+  case class Value(meta: ObjMeta, accRoleMap: SortedMap[RoleName, AccRole.Value]):
     def accRoles: List[AccRole] = accRoleMap.toList.map(AccRole(_, _))
 
   val kind = "WAREHOUSE"

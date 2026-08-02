@@ -1,29 +1,29 @@
 package sfenv
 package rules
 
-import fabric.rw.*
-
 import cats.syntax.all.*
 
-import scala.collection.immutable.ListMap
-import scala.collection.immutable.ListSet
+import scala.collection.immutable.SortedMap
+import scala.collection.immutable.SortedSet
 
-import envr.{RoleName, SchWh, UserGrants}
+import fabric.rw.*
+import envr.{RoleName, SchWh, UserGrants, UserRole}
 
-type SchWhRoles = ListMap[SchWh, String]
+type SchWhRoles = SortedMap[SchWh, String]
 
 case class Role(
     acc_roles: Option[SchWhRoles],
-    env_acc_roles: Option[ListMap[EnvName, SchWhRoles]],
-    users: Option[ListSet[String]],
-    apps: Option[ListSet[String]],
+    env_acc_roles: Option[SortedMap[EnvName, SchWhRoles]],
+    users: Option[SortedSet[String]],
+    apps: Option[SortedSet[String]],
     tags: Option[Tags],
     comment: Option[SqlLiteral],
     create: Option[Boolean],
 ) derives RW:
 
   def roleUsers(name: String)(using n: NameResolver): UserGrants =
-    users.map(_.map(r => (Ident(name), n.fn(r.show)))).getOrElse(ListSet.empty)
+    def toUserRole(x: String): UserRole = (Ident(name), n.fn(x.show))
+    users.map(_.map(toUserRole)).getOrElse(SortedSet.empty)
 
 object Role:
   given ObjMap[Role]:

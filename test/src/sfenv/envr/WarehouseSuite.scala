@@ -1,7 +1,7 @@
 package sfenv
 package envr
 
-import scala.collection.immutable.ListMap
+import scala.collection.immutable.SortedMap
 
 import munit.FunSuite
 
@@ -9,16 +9,16 @@ class WarehouseSuite extends FunSuite:
   val wh = Warehouse(
     Ident("WH_DEV_LOAD"),
     Warehouse.Value(
-      meta       = ObjMeta(Props("warehouse_size" -> "SMALL", "auto_suspend" -> 300)),
-      accRoleMap = ListMap.empty
+      meta = ObjMeta(Props("warehouse_size" -> "SMALL", "auto_suspend" -> 300)),
+      accRoleMap = SortedMap.empty
     )
   )
 
   test("create"):
     val expected = List(
       """|CREATE WAREHOUSE IF NOT EXISTS WH_DEV_LOAD
-         |    WAREHOUSE_SIZE = SMALL
-         |    AUTO_SUSPEND = 300""".stripMargin
+         |    AUTO_SUSPEND = 300
+         |    WAREHOUSE_SIZE = SMALL""".stripMargin
     )
     assertEquals(wh.create.sqls, expected)
 
@@ -29,8 +29,8 @@ class WarehouseSuite extends FunSuite:
     val wh2 = Warehouse(
       Ident("WH_DEV_LOAD"),
       Warehouse.Value(
-        meta       = ObjMeta(Props("warehouse_size" -> "MEDIUM")),
-        accRoleMap = ListMap.empty
+        meta = ObjMeta(Props("warehouse_size" -> "MEDIUM")),
+        accRoleMap = SortedMap.empty
       )
     )
     val expected = List(

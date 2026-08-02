@@ -1,12 +1,12 @@
 package sfenv
 package envr
 
+import cats.Show
+import cats.syntax.all.*
+
 import fabric.*
 import fabric.define.DefType
 import fabric.rw.{RW, RWException}
-
-import cats.Show
-import cats.syntax.all.*
 
 enum SchWh:
   case Schema(db: Ident, sch: Ident)
@@ -22,6 +22,8 @@ object SchWh:
       case Array(db, sch) => Some(Schema(Ident(db), Ident(sch)))
       case Array(wh)      => Some(Warehouse(Ident(wh)))
       case _              => None
+
+  given Ordering[SchWh] = Ordering.by(_.show)
 
   given Show[SchWh]:
     def show(x: SchWh): String = x match

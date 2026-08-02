@@ -4,7 +4,7 @@ package envr
 import cats.data.Chain
 import cats.syntax.all.*
 
-import scala.collection.immutable.ListMap
+import scala.collection.immutable.SortedMap
 
 import CDA.given
 import SqlStmt.*
@@ -16,7 +16,7 @@ case class Database(name: Ident, value: Database.Value):
 object Database:
   val kind = "DATABASE"
 
-  case class Value(transient: Boolean, meta: ObjMeta, schemas: ListMap[Ident, Schema.Value])
+  case class Value(transient: Boolean, meta: ObjMeta, schemas: SortedMap[Ident, Schema.Value])
 
   def apply(
       name: String,
@@ -24,7 +24,7 @@ object Database:
       props: Props = Props.empty,
       tags: Tags = Tags.empty,
       comment: Option[String] = None,
-      schemas: ListMap[String, Schema.Value] = ListMap.empty,
+      schemas: SortedMap[String, Schema.Value] = SortedMap.empty,
   ): Database =
     Database(
       Ident(name),

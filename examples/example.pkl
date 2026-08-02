@@ -1,0 +1,102 @@
+import "defaults.pkl"
+
+config = defaults.config
+
+imports {
+  cust {
+    provider = "custp"
+    share = "data_shr"
+    roles = List("DBA", "DEVELOPER")
+  }
+  partner {
+    provider = "partner_acct"
+    share = "partner_db"
+    roles = cust.roles.add("ETL")
+  }
+}
+
+databases {
+  edw {
+    data_retention_time_in_days = 10
+    comment = "EDW core database"
+    tags {
+      dept = "payroll"
+      shift = "day"
+    }
+    schemas {
+      customer = (defaults.sch) {}
+    }
+  }
+  bi {
+    data_retention_time_in_days = 10
+    comment = "Analytics database"
+    schemas {
+      customer = (defaults.sch) { transient = true }
+    }
+  }
+}
+
+warehouses {
+  load = defaults.wh
+  etl = (defaults.wh) {
+    warehouse_size = "X-LARGE"
+    max_cluster_count = 2
+  }
+  bi_s = (defaults.wh) {
+    warehouse_size = "MEDIUM"
+    max_cluster_count = 5
+  }
+  bi_l = (defaults.wh) {
+    warehouse_size = "2X-LARGE"
+    max_cluster_count = 2
+  }
+}
+
+roles {
+  dba {
+    comment = "Database Administrators"
+    acc_roles = defaults.user_acc_roles("RWC")
+  }
+  developer {
+    comment = "Developers"
+    acc_roles = defaults.user_acc_roles("R")
+    env_acc_roles {
+      DEV {
+        ["edw.customer"] = "RWC"
+        ["bi.customer"] = "RWC"
+        load = "RW"
+      }
+      QA = DEV
+    }
+  }
+  etl {
+    comment = "ETL Application"
+    acc_roles {
+      ["edw.customer"] = "RW"
+      load = "R"
+      etl = "R"
+    }
+  }
+}
+
+users {
+  jdoe {
+    default_role = "DBA"
+    default_warehouse = "LOAD"
+    default_namespace = "EDW.CUSTOMER"
+    default_secondary_roles = "('ALL')"
+    comment = "John Doe"
+    roles = List("DBA", "SYSINFO")
+  }
+  moe {
+    create = false // do not create the user, except only generate permissions
+    roles = jdoe.roles
+  }
+}
+
+apps {
+  etl {
+    comment = "ETL application ID"
+    roles = List("ETL")
+  }
+}

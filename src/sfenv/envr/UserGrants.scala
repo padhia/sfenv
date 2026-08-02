@@ -4,13 +4,13 @@ package envr
 import cats.data.Chain
 import cats.syntax.show.*
 
-import scala.collection.immutable.ListSet
+import scala.collection.immutable.SortedSet
 
 type UserRole   = (user: Ident, role: Ident)
-type UserGrants = ListSet[UserRole]
+type UserGrants = SortedSet[UserRole]
 
 object UserGrants:
-  def empty: UserGrants = ListSet.empty[UserRole]
+  def empty: UserGrants = SortedSet.empty[UserRole]
 
   extension (ug: UserGrants)
     private def permit(f: Permit[String] => SqlStmt) =

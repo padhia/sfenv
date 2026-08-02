@@ -21,8 +21,8 @@ class DatabaseSuite extends FunSuite:
       props     = Props("data_retention_time_in_days" -> 10)
     ).create.sqls(0)
     val expected = """|CREATE TRANSIENT DATABASE IF NOT EXISTS EDW_DEV
-                      |    DATA_RETENTION_TIME_IN_DAYS = 10
                       |    COMMENT = 'EDW Core database'
+                      |    DATA_RETENTION_TIME_IN_DAYS = 10
                       |    WITH TAG TAG1 = 'TAG1 VALUE', TAG2 = 'TAG2 VALUE'""".stripMargin
     assertEquals(actual, expected)
 

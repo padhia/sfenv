@@ -1,0 +1,67 @@
+config {
+  secadm = "RL_{env}_SECADMIN"
+  dbadm = "RL_{env}_SYSADMIN"
+  database = "{db}_{env}"
+  schema = "{sch}"
+  warehouse = "WH_{env}_{wh}"
+  acc_role = "{sch}_{acc}"
+  wacc_role = "_WH_{env}_{wh}_{acc}"
+  fn_role = "RL_{env}_{role}"
+  app_id = "APP_{env}_{app}"
+  cpool = "CP_{cp}"
+}
+
+sch {
+  managed = true
+  data_retention_time_in_days = 10
+  acc_roles {
+    R {
+      database = List("usage", "monitor")
+      schema = List("usage", "monitor")
+      table = List("select", "references")
+      view = List("select")
+    }
+    RW {
+      role = List("R")
+      table = List("insert", "update", "truncate", "delete")
+    }
+    RWC {
+      ROLE = List("RW")
+      schema = List("create table", "create view", "create procedure")
+    }
+  }
+}
+
+wh {
+  warehouse_size = "SMALL"
+  initially_suspended = true
+  auto_suspend = 300
+  auto_resume = true
+  min_cluster_count = 1
+  max_cluster_count = 1
+  scaling_policy = "STANDARD"
+  statement_timeout_in_seconds = 3600
+  statement_queued_timeout_in_seconds = 300
+  acc_roles {
+    R {
+      warehouse = List("usage")
+    }
+    RW {
+      role = List("R")
+      warehouse = List("operate")
+    }
+    RWC {
+      role = List("RW")
+      warehouse = List("monitor", "modify")
+    }
+  }
+}
+
+function user_acc_roles(priv: String) = new {
+  ["edw.customer"] = priv
+  ["bi.customer"] = priv
+  load = priv
+  etl = priv
+  bi_s = priv
+  bi_l = priv
+}

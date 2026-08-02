@@ -3,7 +3,7 @@ package envr
 
 import cats.data.Chain
 
-import scala.collection.immutable.ListMap
+import scala.collection.immutable.SortedMap
 
 trait CDA[T]:
   extension (obj: T)
@@ -29,13 +29,13 @@ object CDA:
             .collect { case (x, Some(y)) if x != y => (x, y) }
             .flatMap((x, y) => if x.updatable(y) then x.update(y) else y.drop ++ x.create)
 
-  given [K, V](using T: CDA[(K, V)]): CDA[ListMap[K, V]] with
-    extension (objs: ListMap[K, V])
-      def sameId(other: ListMap[K, V]): Boolean       = true
-      def updatable(other: ListMap[K, V]): Boolean    = true
-      def create: Chain[SqlStmt]                      = Chain.fromSeq(objs.toList).flatMap(_.create)
-      def drop: Chain[SqlStmt]                        = Chain.fromSeq(objs.toList).reverse.flatMap(T.drop)
-      def update(olds: ListMap[K, V]): Chain[SqlStmt] =
+  given [K, V](using T: CDA[(K, V)]): CDA[SortedMap[K, V]] with
+    extension (objs: SortedMap[K, V])
+      def sameId(other: SortedMap[K, V]): Boolean       = true
+      def updatable(other: SortedMap[K, V]): Boolean    = true
+      def create: Chain[SqlStmt]                        = Chain.fromSeq(objs.toList).flatMap(_.create)
+      def drop: Chain[SqlStmt]                          = Chain.fromSeq(objs.toList).reverse.flatMap(T.drop)
+      def update(olds: SortedMap[K, V]): Chain[SqlStmt] =
         Chain.fromSeq(olds.toList).filterNot(x => objs.exists(_.sameId(x))).reverse.flatMap(T.drop)
           ++ Chain.fromSeq(objs.toList).filterNot(x => olds.exists(_.sameId(x))).flatMap(_.create)
           ++ Chain

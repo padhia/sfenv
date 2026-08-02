@@ -1,7 +1,7 @@
 package sfenv
 package rules
 
-import scala.collection.immutable.{ListMap, VectorMap}
+import scala.collection.immutable.SortedMap
 import scala.compiletime.constValueTuple
 import scala.deriving.Mirror
 import scala.jdk.CollectionConverters.*
@@ -29,12 +29,12 @@ object YamlParser:
       // (The sequence-order approach — anchor first, explicit last — would fail for the
       // valid but uncommon case where explicit entries precede << in the YAML.)
       val (merges, explicit) = v.asScala.toSeq.partition(_._1 == "<<")
-      val anchorPairs = merges.flatMap:
+      val anchorPairs        = merges.flatMap:
         case (_, anchor: java.util.Map[?, ?]) => anchor.asScala.toSeq.map((k, v2) => k.toString -> toJson(v2))
         case _                                => Nil
       val explicitPairs = explicit.map((k, v2) => k.toString -> toJson(v2))
       val explicitKeys  = explicitPairs.map(_._1).toSet
-      Obj(VectorMap.from(anchorPairs.filterNot((k, _) => explicitKeys(k)) ++ explicitPairs))
+      Obj(SortedMap.from(anchorPairs.filterNot((k, _) => explicitKeys(k)) ++ explicitPairs))
     case v: java.util.List[?] => Arr(v.asScala.map(toJson).toVector)
     case v                    => Str(v.toString)
 
@@ -52,7 +52,7 @@ object YamlParser:
       if json.isNull then Props.empty
       else
         val exclude = constValueTuple[m.MirroredElemLabels].toList.asInstanceOf[List[String]].filterNot(_ == "props")
-        ListMap.from(
+        SortedMap.from(
           json.asObj.value.iterator
             .filterNot { case (k, _) => exclude.contains(k) }
             .map(asProp)

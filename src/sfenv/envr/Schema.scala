@@ -5,7 +5,7 @@ import cats.Show
 import cats.data.Chain
 import cats.syntax.all.*
 
-import scala.collection.immutable.ListMap
+import scala.collection.immutable.SortedMap
 
 import SqlStmt.*
 
@@ -16,7 +16,7 @@ case class Schema(name: SchName, value: Schema.Value):
 
 object Schema:
   import CDA.given
-  case class Value(transient: Boolean, managed: Boolean, meta: ObjMeta, accRoleMap: ListMap[RoleName, AccRole.Value])
+  case class Value(transient: Boolean, managed: Boolean, meta: ObjMeta, accRoleMap: SortedMap[RoleName, AccRole.Value])
 
   def apply(
       db: String,
@@ -24,7 +24,7 @@ object Schema:
       transient: Boolean = false,
       managed: Boolean = false,
       meta: ObjMeta = ObjMeta.empty,
-      accRoles: ListMap[String, ListMap[String, List[String]]] = ListMap.empty
+      accRoles: SortedMap[String, SortedMap[String, List[String]]] = SortedMap.empty
   ): Either[String, Schema] =
     AccRole(accRoles, show"$db.$name").map(ar => Schema((Ident(db), Ident(name)), Value(transient, managed, meta, ar)))
 

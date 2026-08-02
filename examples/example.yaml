@@ -16,14 +16,14 @@ imports:
     share: DATA_SHR
     roles:
       - DBA
-      - DEVLOPER
+      - DEVELOPER
 
   PARTNER:
     provider: PARTNER_ACCT
     share: PARTNER_DB
     roles:
       - DBA
-      - DEVLOPER
+      - DEVELOPER
       - ETL
 
 databases:
@@ -85,7 +85,7 @@ warehouses:
     max_cluster_count: 2
 
   BI_S:
-    <<:  *wh_defaults
+    <<: *wh_defaults
     warehouse_size: MEDIUM
     max_cluster_count: 5
 
@@ -139,7 +139,7 @@ users:
       - DBA
       - SYSINFO
   MOE:
-    create: false  # do not create the user, except only generate permissions
+    create: false # do not create the user, except only generate permissions
     roles:
       - DBA
       - SYSINFO

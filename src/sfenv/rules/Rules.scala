@@ -1,10 +1,16 @@
 package sfenv
 package rules
 
-import scala.collection.immutable.ListMap
-import scala.collection.immutable.ListSet
+import cats.effect.IO
+import cats.syntax.all.*
+
+import java.nio.charset.StandardCharsets
+import java.nio.file.{Files, Path}
+
+import scala.collection.immutable.{SortedMap, SortedSet}
 import scala.util.Try
 
+import fabric.Json
 import fabric.rw.*
 import envr.SfEnv
 import sfenv.envr.UserGrants
@@ -12,36 +18,37 @@ import sfenv.envr.UserGrants
 case class Rules(
     config: Option[Config],
     options: Option[Options],
-    imports: Option[ListMap[String, Import]],
-    databases: Option[ListMap[String, Database]],
-    warehouses: Option[ListMap[String, Warehouse]],
-    roles: Option[ListMap[String, Role]],
-    apps: Option[ListMap[String, User]],
-    users: Option[ListMap[String, User]],
-    compute_pools: Option[ListMap[String, ComputePool]]
+    imports: Option[SortedMap[String, Import]],
+    databases: Option[SortedMap[String, Database]],
+    warehouses: Option[SortedMap[String, Warehouse]],
+    roles: Option[SortedMap[String, Role]],
+    apps: Option[SortedMap[String, User]],
+    users: Option[SortedMap[String, User]],
+    compute_pools: Option[SortedMap[String, ComputePool]]
 ) derives RW:
 
   def resolve(envName: String): SfEnv =
     given nr: NameResolver = config.getOrElse(Config()).resolver(envName)
 
     val userGrants: UserGrants =
-      def ug(xs: Option[ListMap[String, User]], fu: String => Ident) =
+      def ug(xs: Option[SortedMap[String, User]], fu: String => Ident) =
         for
           (u, o) <- xs.map(_.toList).getOrElse(List.empty)
-          r      <- o.roles.getOrElse(ListSet.empty)
+          r      <- o.roles.getOrElse(SortedSet.empty[String])
         yield (fu(u), nr.fn(r))
 
       val rg =
         for
-          (r, o) <- roles.getOrElse(ListMap.empty).toList
-          us = o.users.getOrElse(ListSet.empty).map(Ident.apply)
-          as = o.apps.getOrElse(ListSet.empty).map(nr.app)
+          (r, o) <- roles.getOrElse(SortedMap.empty[String, Role]).toList
+          us = o.users.getOrElse(SortedSet.empty[String]).map(Ident.apply)
+          as = o.apps.getOrElse(SortedSet.empty[String]).map(nr.app)
           u <- us ++ as
         yield (u, nr.fn(r))
 
-      ListSet.from(ug(users, Ident.apply) ++ ug(apps, nr.app) ++ rg)
+      SortedSet.from(ug(users, Ident.apply) ++ ug(apps, nr.app) ++ rg)
 
-    def objMap[T: ObjMap](xm: Option[ListMap[String, T]]) = xm.map(_.map((n, o) => o.keyVal(n))).getOrElse(ListMap.empty)
+    def objMap[T: ObjMap](xm: Option[SortedMap[String, T]]) =
+      xm.getOrElse(SortedMap.empty[String, T]).map((n, o) => o.keyVal(n))
 
     SfEnv(
       secAdm = nr.secAdmin,
@@ -56,5 +63,19 @@ case class Rules(
     )
 
 object Rules:
-  def apply(x: String): Either[Throwable, Rules] =
-    Try(YamlParser(x).as[Rules]).toEither
+  private def parse(x: => Json): IO[Rules] =
+    IO.fromEither(Try(x.as[Rules]).toEither.leftMap(e => AppError.RulesParsingError(e.getMessage())))
+
+  def apply(doc: String): IO[Rules] = parse(YamlParser(doc))
+
+  def apply(path: Option[Path]): IO[Rules] =
+    path
+      .map(apply)
+      .getOrElse(apply(String(System.in.readAllBytes(), StandardCharsets.UTF_8)))
+
+  def apply(path: Path): IO[Rules] =
+    for
+      exists <- IO.blocking(Files.exists(path))
+      _      <- IO.raiseUnless(exists)(AppError.FileNotFound(path))
+      rules  <- if path.toString.endsWith(".pkl") then parse(PklParser(path)) else apply(Files.readString(path))
+    yield rules

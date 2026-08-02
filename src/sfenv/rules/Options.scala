@@ -3,7 +3,5 @@ package rules
 
 import fabric.rw.*
 
-case class Options(
-    drop: Option[ProcessDrops] = None,
-    only_futures: Option[Boolean] = None
-) derives RW
+case class Options(drop: GenDrop = GenDrop.Local, only_futures: Boolean = false) derives RW:
+  def genGrant = if only_futures then GenGrant.Future else GenGrant.All

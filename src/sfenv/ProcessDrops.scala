@@ -1,13 +1,12 @@
 package sfenv
 
+import cats.syntax.all.*
+
+import com.monovore.decline.Argument
+
 import fabric.*
 import fabric.define.DefType
 import fabric.rw.{RW, RWException}
-
-import cats.syntax.show.*
-
-import com.monovore.decline.Argument
-import cats.data.Validated
 
 /** Processing option for DROP SQL statments.
   *   - All: retain all DROP SQLs
@@ -23,27 +22,23 @@ enum ProcessDrops:
       case Never    => true
       case NonLocal => if isForeign then false else true
 
-object ProcessDrops:
-  def apply(dropOpt: String): Option[ProcessDrops] =
-    dropOpt match
-      case "all"       => Some(All)
-      case "non-local" => Some(NonLocal)
-      case "none"      => Some(Never)
-      case _           => None
+  override def toString(): String = this match
+    case All      => "all"
+    case NonLocal => "non-local"
+    case Never    => "none"
 
-  given Argument[ProcessDrops] = Argument.from("all|non-local|none")(x =>
-    Validated.fromOption(ProcessDrops(x), "invalid drop option; choose from: 'all', 'non-local', 'none'").toValidatedNel
-  )
+object ProcessDrops:
+  def apply(dropOpt: String): Either[String, ProcessDrops] =
+    dropOpt match
+      case "all"       => Right(All)
+      case "non-local" => Right(NonLocal)
+      case "none"      => Right(Never)
+      case _           => Left(show"invalid drop option $dropOpt; choose from: 'all', 'non-local', 'none'")
+
+  given Argument[ProcessDrops] = Argument.from("all|non-local|none")(apply(_).toValidatedNel)
 
   given RW[ProcessDrops] = RW.from(
-    r = pd => str(pd match
-      case All      => "all"
-      case NonLocal => "non-local"
-      case Never    => "none"
-    ),
-    w = j => {
-      val s = j.asString
-      apply(s).getOrElse(throw RWException(show"invalid drop option '$s'; choose from: 'all', 'non-local', 'none'"))
-    },
+    r = x => str(x.toString()),
+    w = j => apply(j.asString).fold(e => throw RWException(e), x => x),
     d = DefType.Str
   )

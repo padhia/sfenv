@@ -4,25 +4,25 @@ package envr
 import cats.data.Chain
 import cats.syntax.all.*
 
-import scala.collection.immutable.ListMap
+import scala.collection.immutable.Map
 
 import CDA.given
 import UserGrants.*
 
-extension [K, V](xm: ListMap[K, V])
-  private def make[T](f: (K, V) => T): List[T]                  = xm.toList.map(f(_, _))
-  private def create[T: CDA](f: (K, V) => T)                    = xm.make(f).create
-  private def update[T: CDA](f: (K, V) => T, ym: ListMap[K, V]) = xm.make(f).update(ym.make(f))
+extension [K, V](xm: Map[K, V])
+  private def make[T](f: (K, V) => T): List[T]              = xm.toList.map(f(_, _))
+  private def create[T: CDA](f: (K, V) => T)                = xm.make(f).create
+  private def update[T: CDA](f: (K, V) => T, ym: Map[K, V]) = xm.make(f).update(ym.make(f))
 
 case class SfEnv(
     secAdm: Ident,
     sysAdm: Ident,
-    imports: ListMap[Ident, Import.Value],
-    databases: ListMap[Ident, Database.Value],
-    warehouses: ListMap[Ident, Warehouse.Value],
-    computePools: ListMap[Ident, ComputePool.Value],
-    roles: ListMap[Ident, Role.Value],
-    users: ListMap[Ident, User.Value],
+    imports: Map[Ident, Import.Value],
+    databases: Map[Ident, Database.Value],
+    warehouses: Map[Ident, Warehouse.Value],
+    computePools: Map[Ident, ComputePool.Value],
+    roles: Map[Ident, Role.Value],
+    users: Map[Ident, User.Value],
     userGrants: UserGrants,
 ):
 
@@ -45,9 +45,9 @@ case class SfEnv(
       ++ users.update(User.apply, old.users)
       ++ (userGrants -- old.userGrants).grant
 
-  def genSqls[F[_]](prev: Option[SfEnv])(using genOpts: SqlGenOptions) =
+  def genSqls[F[_]](prev: Option[SfEnv])(using genDrop: GenDrop, genGrant: GenGrant) =
     def maskDropStmt(stmt: SqlStmt): SqlStmt =
-      if genOpts.drop.useMask(stmt.isForeign) then
+      if genDrop.useMask(stmt.isForeign) then
         stmt.text match
           case Sql.Txt(sql) => if sql.startsWith("DROP") then stmt.copy(text = Sql.Txt("-- " + sql)) else stmt
           case _            => stmt
@@ -62,7 +62,7 @@ case class SfEnv(
     prev
       .map(p => alter(p))
       .getOrElse(create)
-      .through(if genOpts.onlyFutures then _.filter(!_.forAll) else identity)
+      .through(if genGrant == GenGrant.Future then _.filter(!_.forAll) else identity)
       .map(maskDropStmt)
       .through(SqlStmt.sqlStream(sysAdm, secAdm))
       .through(prettify)

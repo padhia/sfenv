@@ -4,32 +4,32 @@ package envr
 import cats.data.Chain
 import cats.syntax.all.*
 
-import collection.immutable.{ListMap, ListSet}
+import collection.immutable.{SortedMap, SortedSet}
 
 case class AccRole(name: RoleName, value: AccRole.Value):
   export value.*
 
 object AccRole:
-  case class Value(roles: ListSet[RoleName], privs: ListMap[Ident, ListSet[UString]])
+  case class Value(roles: SortedSet[RoleName], privs: SortedMap[Ident, SortedSet[UString]])
 
-  def apply(name: String, privs: ListMap[String, List[String]]): Either[String, (RoleName, AccRole.Value)] =
+  def apply(name: String, privs: SortedMap[String, List[String]]): Either[String, (RoleName, AccRole.Value)] =
     for
       n  <- RoleName(name)
-      rs <- privs.get("role").getOrElse(List.empty).traverse(RoleName.apply).map(ListSet.from)
-      ps = privs.filter(_._1 != "role").map((k, v) => (Ident(k), ListSet.from(v.map(UString.apply))))
+      rs <- privs.get("role").getOrElse(List.empty).traverse(RoleName.apply).map(SortedSet.from)
+      ps = privs.filter(_._1 != "role").map((k, v) => (Ident(k), SortedSet.from(v.map(UString.apply))))
     yield (n, Value(rs, ps))
 
   def apply(
-      accRoles: ListMap[String, ListMap[String, List[String]]],
+      accRoles: SortedMap[String, SortedMap[String, List[String]]],
       pfx: String
-  ): Either[String, ListMap[RoleName, AccRole.Value]] =
+  ): Either[String, SortedMap[RoleName, AccRole.Value]] =
     def attachDbSch(k: String, v: List[String]) = (k, if k == "role" then v.map(x => show"${pfx}_$x") else v)
-    accRoles.toList.traverse((k, v) => apply(show"${pfx}_$k", v.map(attachDbSch))).map(ListMap.from(_))
+    accRoles.toList.traverse((k, v) => apply(show"${pfx}_$k", v.map(attachDbSch))).map(SortedMap.from(_))
 
   def cda(grantOn: SchWh) =
     new CDA[AccRole]:
       extension (ar: AccRole)
-        private def permit(objType: Ident, privileges: ListSet[UString]): Chain[Permit[String]] =
+        private def permit(objType: Ident, privileges: SortedSet[UString]): Chain[Permit[String]] =
           if privileges.isEmpty then Chain.empty
           else
             val privs = privileges.map(_.show).mkString(", ")
@@ -48,10 +48,10 @@ object AccRole:
                 )
               case _ => Chain(Permit(show"$privs ON ${objType} $grantOn", ar.name))
 
-        private def permit(roles: ListSet[RoleName]): Chain[Permit[String]] =
+        private def permit(roles: SortedSet[RoleName]): Chain[Permit[String]] =
           Chain.fromSeq(roles.toSeq).map(r => Permit(r.show, ar.name, grantor = Admin.Sec))
 
-        private def permit(privs: ListMap[Ident, ListSet[UString]]): Chain[Permit[String]] =
+        private def permit(privs: SortedMap[Ident, SortedSet[UString]]): Chain[Permit[String]] =
           Chain.fromSeq(privs.toSeq).flatMap(ar.permit(_, _))
 
         def permit: Chain[Permit[String]] =
@@ -65,8 +65,8 @@ object AccRole:
         override def create: Chain[SqlStmt]               = ar.name.create +: ar.permit.map(_.grant)
         override def drop: Chain[SqlStmt]                 = ar.permit.reverse.map(_.revoke) :+ ar.name.drop
         override def update(old: AccRole): Chain[SqlStmt] =
-          val privs = ar.privs.map((k, v) => (k, (v, old.privs.getOrElse(k, ListSet.empty))))
-            ++ (old.privs -- ar.privs.keys).map((k, v) => (k, (ListSet.empty[UString], v)))
+          val privs = ar.privs.map((k, v) => (k, (v, old.privs.getOrElse(k, SortedSet.empty[UString]))))
+            ++ (old.privs -- ar.privs.keys).map((k, v) => (k, (SortedSet.empty[UString], v)))
 
           ar.permit(privs.map((k, v) => (k, v._2 -- v._1))).map(_.revoke)
             ++ ar.permit(old.roles -- ar.roles).map(_.revoke)

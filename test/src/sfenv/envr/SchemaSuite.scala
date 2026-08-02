@@ -1,25 +1,25 @@
 package sfenv
 package envr
 
-import scala.collection.immutable.ListMap
+import scala.collection.immutable.SortedMap
 
 import munit.FunSuite
 
 class SchemaSuite extends FunSuite:
   def testSch =
     val sch = Schema(
-      db        = "DEV_DB",
-      name      = "SCH",
+      db = "DEV_DB",
+      name = "SCH",
       transient = true,
-      managed   = true,
-      meta      = ObjMeta(Props("data_retention_time_in_days" -> 10)),
-      accRoles  = ListMap(
-        "R" -> ListMap(
+      managed = true,
+      meta = ObjMeta(Props("data_retention_time_in_days" -> 10)),
+      accRoles = SortedMap(
+        "R" -> SortedMap(
           "database" -> List("usage"),
           "schema"   -> List("usage"),
           "table"    -> List("select")
         ),
-        "RW" -> ListMap(
+        "RW" -> SortedMap(
           "role"  -> List("R"),
           "table" -> List("insert", "update", "truncate", "delete")
         )
@@ -46,15 +46,15 @@ class SchemaSuite extends FunSuite:
       "CREATE DATABASE ROLE IF NOT EXISTS DEV_DB.SCH_RW",
       "GRANT DATABASE ROLE DEV_DB.SCH_RW TO ROLE DEV_SYSADM",
       "GRANT DATABASE ROLE DEV_DB.SCH_R TO DATABASE ROLE DEV_DB.SCH_RW",
-      "GRANT INSERT, UPDATE, TRUNCATE, DELETE ON FUTURE TABLES IN SCHEMA DEV_DB.SCH TO DATABASE ROLE DEV_DB.SCH_RW",
-      "GRANT INSERT, UPDATE, TRUNCATE, DELETE ON ALL TABLES IN SCHEMA DEV_DB.SCH TO DATABASE ROLE DEV_DB.SCH_RW"
+      "GRANT DELETE, INSERT, TRUNCATE, UPDATE ON FUTURE TABLES IN SCHEMA DEV_DB.SCH TO DATABASE ROLE DEV_DB.SCH_RW",
+      "GRANT DELETE, INSERT, TRUNCATE, UPDATE ON ALL TABLES IN SCHEMA DEV_DB.SCH TO DATABASE ROLE DEV_DB.SCH_RW"
     )
     assertEquals(testSch.create.sqls, expected)
 
   test("drop"):
     val expected = List(
-      "REVOKE INSERT, UPDATE, TRUNCATE, DELETE ON ALL TABLES IN SCHEMA DEV_DB.SCH FROM DATABASE ROLE DEV_DB.SCH_RW",
-      "REVOKE INSERT, UPDATE, TRUNCATE, DELETE ON FUTURE TABLES IN SCHEMA DEV_DB.SCH FROM DATABASE ROLE DEV_DB.SCH_RW",
+      "REVOKE DELETE, INSERT, TRUNCATE, UPDATE ON ALL TABLES IN SCHEMA DEV_DB.SCH FROM DATABASE ROLE DEV_DB.SCH_RW",
+      "REVOKE DELETE, INSERT, TRUNCATE, UPDATE ON FUTURE TABLES IN SCHEMA DEV_DB.SCH FROM DATABASE ROLE DEV_DB.SCH_RW",
       "REVOKE DATABASE ROLE DEV_DB.SCH_R FROM DATABASE ROLE DEV_DB.SCH_RW",
       "REVOKE DATABASE ROLE DEV_DB.SCH_RW FROM ROLE DEV_SYSADM",
       "DROP DATABASE ROLE IF EXISTS DEV_DB.SCH_RW",

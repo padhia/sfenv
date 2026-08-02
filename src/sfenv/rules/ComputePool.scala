@@ -1,12 +1,11 @@
 package sfenv
 package rules
 
+import scala.collection.immutable.SortedMap
+
 import fabric.*
 import fabric.define.DefType
 import fabric.rw.*
-
-import scala.collection.immutable.ListMap
-
 import envr.ObjMeta
 
 case class ComputePool(
@@ -20,8 +19,8 @@ case class ComputePool(
   def minNodes_       = minNodes.getOrElse(1)
   def maxNodes_       = maxNodes.getOrElse(minNodes_)
   def instanceFamily_ = instanceFamily.getOrElse("CPU_X64_XS")
-  def objMeta =
-    val p = ListMap(
+  def objMeta         =
+    val p = SortedMap(
       "MIN_NODES"       -> PropVal(minNodes_),
       "MAX_NODES"       -> PropVal(maxNodes_),
       "INSTANCE_FAMILY" -> PropVal(instanceFamily_)
@@ -31,14 +30,15 @@ case class ComputePool(
 object ComputePool:
   given RW[ComputePool] = RW.from(
     r = _ => throw UnsupportedOperationException("ComputePool serialization not supported"),
-    w = json => ComputePool(
-      minNodes       = json.attr("minNodes").as[Option[Int]],
-      maxNodes       = json.attr("maxNodes").as[Option[Int]],
-      instanceFamily = json.attr("instanceFamily").as[Option[String]],
-      tags           = json.attr("tags").as[Option[Tags]],
-      comment        = json.attr("comment").as[Option[SqlLiteral]],
-      props          = json.props[ComputePool],
-    ),
+    w = json =>
+      ComputePool(
+        minNodes = json.attr("minNodes").as[Option[Int]],
+        maxNodes = json.attr("maxNodes").as[Option[Int]],
+        instanceFamily = json.attr("instanceFamily").as[Option[String]],
+        tags = json.attr("tags").as[Option[Tags]],
+        comment = json.attr("comment").as[Option[SqlLiteral]],
+        props = json.props[ComputePool],
+      ),
     d = DefType.Json
   )
 
