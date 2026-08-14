@@ -34,7 +34,7 @@ object Role:
       def keyVal(k: String)(using n: NameResolver) =
         def mkRole(schWh: SchWh, acc: String) =
           schWh match
-            case SchWh.Schema(db, sch) => RoleName.Database(n.db(db.show), n.acc(db.show, sch.show, acc))
+            case SchWh.Schema(db, sch) => RoleName.Access(n.db(db.show), n.sch(db.show, sch.show), n.acc(db.show, sch.show, acc))
             case SchWh.Warehouse(wh)   => RoleName.Account(n.wacc(wh.show, acc))
 
         val accRoles: List[RoleName] = r.env_acc_roles

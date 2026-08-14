@@ -27,7 +27,7 @@ extension (ar: AccRoles)
     ar.map((k, v) => resolvePriv(k, v))
 
   def resolve(db: String, sch: String)(using n: NameResolver): SortedMap[RoleName, AccRole.Value] =
-    resolve(x => RoleName.Database(n.db(db), n.acc(db, sch, x.value)))
+    resolve(x => RoleName.Access(n.db(db), n.sch(db, sch), n.acc(db, sch, x.value)))
 
   def resolve(wh: String)(using n: NameResolver): SortedMap[RoleName, AccRole.Value] =
     resolve(x => RoleName.Account(n.wacc(wh, x.value)))

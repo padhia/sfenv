@@ -1,16 +1,19 @@
 package sfenv
 package envr
 
-import cats.data.Chain
+import cats.data.{Chain, State}
 import cats.syntax.all.*
 
 import SqlStmt.*
 
 case class Role(name: Ident, value: Role.Value):
   export value.*
+  val roleName = RoleName.Account(name)
 
 object Role:
   val kind = "ROLE"
+
+  type DbSch = (Ident, Ident)
 
   case class Value(accRoles: List[RoleName], meta: ObjMeta, createObj: Boolean)
 
@@ -27,8 +30,27 @@ object Role:
 
   given CDA[Role]:
     extension (role: Role)
-      private def permit(accRoles: Seq[RoleName], f: Permit[RoleName] => SqlStmt) =
-        Chain.fromSeq(accRoles.map(ar => Permit(ar, RoleName.Account(role.name), grantor = Admin.Sec))).map(f)
+      private def permit(ar: RoleName): State[Set[DbSch], Chain[Permit[String]]] = State: seen =>
+        ar match
+          case RoleName.Access(db, sch, _) if !seen.contains((db, sch)) =>
+            (
+              seen + ((db, sch)),
+              Chain(
+                Permit(show"USAGE ON DATABASE $db", role.roleName, grantor = Admin.Sec),
+                Permit(show"USAGE ON SCHEMA $db.$sch", role.roleName, grantor = Admin.Sec),
+                Permit(ar.show, role.roleName, grantor = Admin.Sec)
+              )
+            )
+          case _ => (seen, Chain(Permit(ar.show, role.roleName, grantor = Admin.Sec)))
+
+      private def permit(accRoles: Seq[RoleName], f: Permit[String] => SqlStmt): Chain[SqlStmt] =
+        Chain
+          .fromSeq(accRoles)
+          .flatTraverse(permit)
+          .run(Set.empty[DbSch])
+          .value
+          ._2
+          .map(f)
 
       private def permit = Permit(RoleName.Account(role.name), Grantee.SysAdm, grantor = Admin.Sec)
 

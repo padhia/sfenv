@@ -35,9 +35,9 @@ object AccRole:
             val privs = privileges.map(_.show).mkString(", ")
 
             ar.name match
-              case RoleName.Database(db, _) if objType == Ident("DATABASE") =>
+              case RoleName.Access(db, _, _) if objType == Ident("DATABASE") =>
                 Chain(Permit(show"$privs ON DATABASE $db", ar.name))
-              case RoleName.Database(_, _) if objType != Ident("SCHEMA") =>
+              case RoleName.Access(_, _, _) if objType != Ident("SCHEMA") =>
                 Chain("FUTURE", "ALL").map(x =>
                   Permit(
                     show"$privs ON $x ${objType.show.plural} IN SCHEMA $grantOn",
