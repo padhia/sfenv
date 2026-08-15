@@ -54,7 +54,7 @@ Where:
 
 ## Choosing a Rules File Format
 
-YAML and JSON are supported for familiarity. Pkl offers additional benefits for larger configurations:
+YAML and JSON are supported natively. `.pkl` files are supported if [Pkl cli](https://github.com/apple/pkl/releases) is available in the `PATH`. Pkl offers additional benefits for larger configurations:
 
 - **Imports and reusable defaults** — define schema or warehouse templates once in a shared file and extend them per object
 - **Inheritance** — `(defaults.sch) { transient = true }` extends a base template with one override

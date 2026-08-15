@@ -7,33 +7,24 @@ import mill.scalalib.publish.*
 
 object V:
   val scala     = "3.8.4"
-  val fabric    = "1.19.0"
-  val snakeyaml = "3.0.1"
-  val pkl       = "0.32.1"
+  val fabric    = "1.30.0"
+  val snakeyaml = "3.1.1"
   val decline   = "2.6.2"
-  val munit     = "1.3.4"
-  val polyglot  = "25.0.1"
+  val munit     = "1.3.5"
 
 object `package` extends ScalaModule with PublishModule with NativeImageModule:
-  override def scalaVersion       = V.scala
-  override def publishVersion     = "0.3.0-SNAPSHOT"
-  override def scalacOptions      = Seq("-deprecation", "-feature", "-Wunused:all")
-  override def artifactName       = "sfenv"
-  override def mainClass          = Some("sfenv.Main")
-  override def nativeImageOptions = Seq(
-    "--no-fallback",
-    "-J--sun-misc-unsafe-memory-access=allow",
-    "--initialize-at-build-time=org.pkl.core.runtime.VmLanguageProvider",
-    "--enable-native-access=org.graalvm.truffle",
-  )
-  override def forkArgs = Seq("--sun-misc-unsafe-memory-access=allow", "--enable-native-access=ALL-UNNAMED")
+  override def scalaVersion   = V.scala
+  override def publishVersion = "0.3.0-RC2"
+  override def scalacOptions  = Seq("-deprecation", "-feature", "-Wunused:all", "-release:17")
+  override def artifactName   = "sfenv"
+  override def mainClass      = Some("sfenv.Main")
+
+  override def nativeImageOptions = Seq("--no-fallback", "-J--sun-misc-unsafe-memory-access=allow")
 
   def mvnDeps = Seq(
     mvn"com.monovore::decline-effect:${V.decline}",
-    mvn"org.typelevel::fabric-core:${V.fabric}",
+    mvn"org.typelevel::fabric-io:${V.fabric}",
     mvn"org.snakeyaml:snakeyaml-engine:${V.snakeyaml}",
-    mvn"org.pkl-lang:pkl-config-java:${V.pkl}",
-    mvn"org.graalvm.polyglot:polyglot:${V.polyglot}"
   )
 
   def pomSettings = PomSettings(

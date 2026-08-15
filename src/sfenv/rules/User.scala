@@ -3,8 +3,6 @@ package rules
 
 import scala.collection.immutable.{SortedMap, SortedSet}
 
-import fabric.*
-import fabric.define.DefType
 import fabric.rw.*
 import envr.{ObjMeta, UserGrants, UserRole}
 
@@ -23,21 +21,7 @@ case class User(
     roles.map(_.map(toUserRole)).getOrElse(SortedSet.empty)
 
 object User:
-  given RW[User] = RW.from(
-    r = _ => throw UnsupportedOperationException("User serialization not supported"),
-    w = json =>
-      User(
-        roles = json.attr("roles").as[Option[SortedSet[String]]],
-        default_warehouse = json.attr("default_warehouse").as[Option[String]],
-        default_namespace = json.attr("default_namespace").as[Option[Namespace]],
-        default_role = json.attr("default_role").as[Option[String]],
-        tags = json.attr("tags").as[Option[Tags]],
-        comment = json.attr("comment").as[Option[SqlLiteral]],
-        create = json.attr("create").as[Option[Boolean]],
-        props = json.props[User],
-      ),
-    d = DefType.Json
-  )
+  given RW[User] = propsRW
 
   def objMap(f: String => Ident) =
     new ObjMap[User]:

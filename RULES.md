@@ -35,28 +35,28 @@ config:
   cpool: "CP_{env}_{cp}"
 ```
 
-| template    | Allowed Variables | default         |
-| ----------- | ----------------- | --------------- |
-| `secadm`    |                   | `USERADMIN` |
-| `dbadm`     |                   | `SYSADMIN`      |
-| `database`  | env, db           | `{db}`          |
-| `schema`    | env, db, sch      | `{sch}`         |
-| `warehouse` | env, wh           | `{wh}`          |
-| `acc_role`  | env, db, sch, acc | `{sch}_{acc}`   |
-| `wacc_role` | env, wh, acc      | `_{wh}_{acc}`   |
-| `fn_role`   | env, role         | `{role}`        |
-| `app_id`    | env, app          | `{app}`         |
-| `cpool`     | env, cp           | `{cp}`          |
+| template    | Allowed Variables | default       |
+| ----------- | ----------------- | ------------- |
+| `secadm`    |                   | `USERADMIN`   |
+| `dbadm`     |                   | `SYSADMIN`    |
+| `database`  | env, db           | `{db}`        |
+| `schema`    | env, db, sch      | `{sch}`       |
+| `warehouse` | env, wh           | `{wh}`        |
+| `acc_role`  | env, db, sch, acc | `{sch}_{acc}` |
+| `wacc_role` | env, wh, acc      | `_{wh}_{acc}` |
+| `fn_role`   | env, role         | `{role}`      |
+| `app_id`    | env, app          | `{app}`       |
+| `cpool`     | env, cp           | `{cp}`        |
 
 Notes:
 
 - All attributes in `config` section are _templates_ to derive corresponding object names.
-  - Names are derived by substituting _variables_ (placeholders enclosed in `{}`).
+    - Names are derived by substituting _variables_ (placeholders enclosed in `{}`).
 - `env` is a special variable that is supplied at run-time. This enables generating SQL statements that are similar but have slightly different names depending on the _environment_.
 - Except for `env`, all other variables are derived from the context within the rules file.
 - Generated DDLs and DCLs will include appropriate `use role <secadm>|<dbadm>` statements.
-  - `<secadm>` is security administrator ID for an environment and controls permissions
-  - `<dbadm>` is resource owner and owns the created objects
+    - `<secadm>` is security administrator ID for an environment and controls permissions
+    - `<dbadm>` is resource owner and owns the created objects
 
 ## `options`
 
@@ -66,24 +66,24 @@ A YAML/JSON object containing _options_ that control SQL code generation.
 
 ```yaml
 options:
-  only_futures: true
-  drops: non-local
+    only_futures: true
+    drops: non-local
 ```
 
 Notes:
 
 - `create_users` controls whether DDLs for managing users are generated or not.
-  - this option affects both, `users` and `apps`, sections
-  - By default Snowflake User IDs only serve as anchors for assigning roles and are not created
-  - Recommendation: enable this option if users are not externally managed
+    - this option affects both, `users` and `apps`, sections
+    - By default Snowflake User IDs only serve as anchors for assigning roles and are not created
+    - Recommendation: enable this option if users are not externally managed
 - `create_roles` controls whether DDLs for managing _account-level roles_ are generated or not.
-  - Note that database-level roles are always generated when required
+    - Note that database-level roles are always generated when required
 - `create_warehouse` controls whether DDLs for managing _account-level roles_ are generated or not.
 - `only_futures`: generate `ALL` in addition to `FUTURE` grants
 - `drops`: controls generation of `DROP` statements
-  - `non-local`: generate `DROP` for objects that are not local (for example shares)
-  - `all`: generate `DROP` statements
-  - `none`: do not generate `DROP` statements
+    - `non-local`: generate `DROP` for objects that are not local (for example shares)
+    - `all`: generate `DROP` statements
+    - `none`: do not generate `DROP` statements
 - command-line options have higher priority over options specified in rules file
 
 ## `imports`
@@ -163,6 +163,7 @@ A schema is a YAML/JSON object that defines a database schema and has following 
 - `managed`: `true` if this is a managed schema
 - `comment`: comment that'll be part of the generated DDL
 - `acc_roles`: A YAML/JSON object containing access role definitions to create
+    - Note: granting an access-role to a functional-role will automatically include USAGE privilage on the database and schema
 - `...`: Other attributes are reproduced as defined in the generated DDL
 
 ## `warehouses`

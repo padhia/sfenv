@@ -77,5 +77,6 @@ object Rules:
     for
       exists <- IO.blocking(Files.exists(path))
       _      <- IO.raiseUnless(exists)(AppError.FileNotFound(path))
-      rules  <- if path.toString.endsWith(".pkl") then parse(PklParser(path)) else apply(Files.readString(path))
+      rules  <-
+        if path.toString.endsWith(".pkl") then PklParser(path).flatMap(json => parse(json)) else apply(Files.readString(path))
     yield rules

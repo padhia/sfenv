@@ -16,9 +16,9 @@ class DatabaseSuite extends FunSuite:
     val actual = Database(
       "EDW_DEV",
       transient = true,
-      tags      = Tags("TAG1" -> "TAG1 VALUE", "TAG2" -> "TAG2 VALUE"),
-      comment   = Some("EDW Core database"),
-      props     = Props("data_retention_time_in_days" -> 10)
+      tags = Tags("TAG1" -> "TAG1 VALUE", "TAG2" -> "TAG2 VALUE"),
+      comment = Some("EDW Core database"),
+      props = Props("data_retention_time_in_days" -> 10)
     ).create.sqls(0)
     val expected = """|CREATE TRANSIENT DATABASE IF NOT EXISTS EDW_DEV
                       |    COMMENT = 'EDW Core database'
@@ -34,8 +34,8 @@ class DatabaseSuite extends FunSuite:
     assertEquals(Database("EDW_DEV").drop.sqls, expected)
 
   test("alter"):
-    val db1    = Database("EDW_DEV", comment = Some("EDW core database"), props = Props("data_retention_time_in_days" -> 10))
-    val db2    = Database("EDW_DEV", comment = Some("EDW core database2"))
+    val db1      = Database("EDW_DEV", comment = Some("EDW core database"), props = Props("data_retention_time_in_days" -> 10))
+    val db2      = Database("EDW_DEV", comment = Some("EDW core database2"))
     val expected = List(
       "ALTER DATABASE IF EXISTS EDW_DEV SET COMMENT = 'EDW core database2'",
       "ALTER DATABASE IF EXISTS EDW_DEV UNSET DATA_RETENTION_TIME_IN_DAYS"

@@ -3,7 +3,7 @@ package sfenv
 import cats.Show
 
 import fabric.*
-import fabric.define.DefType
+import fabric.define.{Definition, DefType}
 import fabric.rw.RW
 
 case class Ident(value: String):
@@ -17,4 +17,4 @@ case class Ident(value: String):
 object Ident:
   given Ordering[Ident] = Ordering.by(_.value)
   given Show[Ident]     = Show.show(_.canonical)
-  given RW[Ident]       = RW.from(r = id => str(id.value), w = j => Ident(j.asString), d = DefType.Str)
+  given RW[Ident]       = RW.from(r = id => str(id.value), w = j => Ident(j.asString), d = Definition(DefType.Str))

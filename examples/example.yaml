@@ -37,10 +37,9 @@ databases:
       CUSTOMER: &sch_defaults
         managed: true
         data_retention_time_in_days: 10
-        acc_roles: &sch_acc_defaults
+        acc_roles:
+          &sch_acc_defaults # Assigning Access-roles to a Functiona-role will include USAGE on the database and schema
           R:
-            database: [usage, monitor]
-            schema: [usage, monitor]
             table: [select, references]
             view: [select]
           RW:

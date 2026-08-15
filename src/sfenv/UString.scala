@@ -3,7 +3,7 @@ package sfenv
 import cats.Show
 
 import fabric.*
-import fabric.define.DefType
+import fabric.define.{Definition, DefType}
 import fabric.rw.RW
 
 opaque type UString = String
@@ -13,5 +13,5 @@ object UString:
   extension (u: UString) inline def value: String = u
 
   given Show[UString]     = Show.show(t => t)
-  given RW[UString]       = RW.from(r = us => str(apply(us)), w = j => apply(j.asString), d = DefType.Str)
+  given RW[UString]       = RW.from(r = us => str(apply(us)), w = j => apply(j.asString), d = Definition(DefType.Str))
   given Ordering[UString] = Ordering.by(s => s)

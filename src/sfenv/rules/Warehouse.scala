@@ -3,8 +3,6 @@ package rules
 
 import scala.collection.immutable.SortedMap
 
-import fabric.*
-import fabric.define.DefType
 import fabric.rw.*
 import envr.ObjMeta
 
@@ -16,17 +14,7 @@ case class Warehouse(
 )
 
 object Warehouse:
-  given RW[Warehouse] = RW.from(
-    r = _ => throw UnsupportedOperationException("Warehouse serialization not supported"),
-    w = json =>
-      Warehouse(
-        acc_roles = json.attr("acc_roles").as[Option[AccRoles]],
-        tags = json.attr("tags").as[Option[Tags]],
-        comment = json.attr("comment").as[Option[SqlLiteral]],
-        props = json.props[Warehouse],
-      ),
-    d = DefType.Json
-  )
+  given RW[Warehouse] = propsRW
 
   given ObjMap[Warehouse]:
     type Key   = Ident

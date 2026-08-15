@@ -3,8 +3,6 @@ package rules
 
 import scala.collection.immutable.SortedMap
 
-import fabric.*
-import fabric.define.DefType
 import fabric.rw.*
 import envr.ObjMeta
 
@@ -28,16 +26,4 @@ case class Schema(
     )
 
 object Schema:
-  given RW[Schema] = RW.from(
-    r = _ => throw UnsupportedOperationException("Schema serialization not supported"),
-    w = json =>
-      Schema(
-        transient = json.attr("transient").as[Option[Boolean]],
-        managed = json.attr("managed").as[Option[Boolean]],
-        acc_roles = json.attr("acc_roles").as[Option[AccRoles]],
-        tags = json.attr("tags").as[Option[Tags]],
-        comment = json.attr("comment").as[Option[SqlLiteral]],
-        props = json.props[Schema],
-      ),
-    d = DefType.Json
-  )
+  given RW[Schema] = propsRW

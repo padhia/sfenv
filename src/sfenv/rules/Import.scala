@@ -1,9 +1,9 @@
 package sfenv
 package rules
 
-import fabric.rw.*
-
 import cats.syntax.all.*
+
+import fabric.rw.*
 
 case class Import(provider: Ident, share: Ident, roles: Option[List[Ident]]) derives RW
 

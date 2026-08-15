@@ -5,7 +5,7 @@ import cats.syntax.all.*
 import com.monovore.decline.Argument
 
 import fabric.*
-import fabric.define.DefType
+import fabric.define.{Definition, DefType}
 import fabric.rw.{RW, RWException}
 
 /** Which DROP SQL statments should be commented out for safety
@@ -38,5 +38,5 @@ object GenDrop:
   given RW[GenDrop] = RW.from(
     r = x => str(x.toString()),
     w = j => apply(j.asString).fold(e => throw RWException(e), x => x),
-    d = DefType.Str
+    d = Definition(DefType.Str)
   )

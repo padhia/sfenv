@@ -3,8 +3,6 @@ package rules
 
 import scala.collection.immutable.SortedMap
 
-import fabric.*
-import fabric.define.DefType
 import fabric.rw.*
 import envr.ObjMeta
 
@@ -17,18 +15,7 @@ case class Database(
 )
 
 object Database:
-  given RW[Database] = RW.from(
-    r = _ => throw UnsupportedOperationException("Database serialization not supported"),
-    w = json =>
-      Database(
-        transient = json.attr("transient").as[Option[Boolean]],
-        schemas = json("schemas").as[SortedMap[String, Schema]],
-        tags = json.attr("tags").as[Option[Tags]],
-        comment = json.attr("comment").as[Option[SqlLiteral]],
-        props = json.props[Database],
-      ),
-    d = DefType.Json
-  )
+  given RW[Database] = propsRW
 
   given ObjMap[Database]:
     type Key   = Ident

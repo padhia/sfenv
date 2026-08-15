@@ -5,7 +5,7 @@ import cats.Show
 import cats.syntax.all.*
 
 import fabric.*
-import fabric.define.DefType
+import fabric.define.{Definition, DefType}
 import fabric.rw.{RW, RWException}
 
 enum SchWh:
@@ -36,5 +36,5 @@ object SchWh:
       val s = j.asString
       apply(s).getOrElse(throw RWException(s"Invalid SchWh: '$s'"))
     },
-    d = DefType.Str
+    d = Definition(DefType.Str)
   )

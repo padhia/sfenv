@@ -14,10 +14,8 @@ config {
 sch {
   managed = true
   data_retention_time_in_days = 10
-  acc_roles {
+  acc_roles { // assigning Access-role to a Functional-role will automatically include USAGE on the database and schema
     R {
-      database = List("usage", "monitor")
-      schema = List("usage", "monitor")
       table = List("select", "references")
       view = List("select")
     }

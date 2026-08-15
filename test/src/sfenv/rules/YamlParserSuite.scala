@@ -50,8 +50,8 @@ class YamlParserSuite extends FunSuite:
       |  x: explicit-x   # override appears BEFORE <<
       |  <<: *anchor
       """)("child")
-    assertEquals(child("x").asStr.value, "explicit-x")   // explicit wins
-    assertEquals(child("y").asStr.value, "anchor-y")      // anchor-only field present
+    assertEquals(child("x").asStr.value, "explicit-x") // explicit wins
+    assertEquals(child("y").asStr.value, "anchor-y")   // anchor-only field present
 
   test("plain alias - anchor map is the value, entries are not inlined"):
     val json = parse("""
@@ -60,7 +60,7 @@ class YamlParserSuite extends FunSuite:
       |child: *anchor
       """)
     assertEquals(json("child")("x").asNum.asLong, 1L) // x is inside child
-    assert(json.get("x").isEmpty)                      // x is NOT inlined into root
+    assert(json.get("x").isEmpty)                     // x is NOT inlined into root
 
   test("scalar types - boolean"):
     val json = YamlParser("t: true\nf: false")

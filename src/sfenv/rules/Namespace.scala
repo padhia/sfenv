@@ -1,13 +1,13 @@
 package sfenv
 package rules
 
-import fabric.*
-import fabric.define.DefType
-import fabric.rw.{RW, RWException}
-
 import cats.syntax.all.*
 
 import scala.util.*
+
+import fabric.*
+import fabric.define.{Definition, DefType}
+import fabric.rw.{RW, RWException}
 
 enum Namespace:
   case Schema(db: String, sch: String)
@@ -20,10 +20,10 @@ enum Namespace:
 
 object Namespace:
   given RW[Namespace] = RW.from(
-    r = ns => str(ns match
-      case Schema(db, sch) => s"$db.$sch"
-      case Database(db)    => db
-    ),
+    r = ns =>
+      str(ns match
+        case Schema(db, sch) => s"$db.$sch"
+        case Database(db)    => db),
     w = j => {
       val x = j.asString
       (x.split("\\.") match
@@ -34,5 +34,5 @@ object Namespace:
         case Success(v) => v
         case Failure(e) => throw RWException(e.getMessage)
     },
-    d = DefType.Str
+    d = Definition(DefType.Str)
   )
