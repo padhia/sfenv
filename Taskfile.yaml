@@ -3,6 +3,7 @@ version: "3"
 tasks:
   init:
     cmds:
+      - rm -rf .bloop/ .metals/ .bsp/
       - mill --bsp-install
 
   native-image:

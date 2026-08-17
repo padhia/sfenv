@@ -63,10 +63,11 @@ case class Rules(
     )
 
 object Rules:
-  private def parse(x: => Json): IO[Rules] =
+  private def parse(x: Json): IO[Rules] =
     IO.fromEither(Try(x.as[Rules]).toEither.leftMap(e => AppError.RulesParsingError(e.getMessage())))
 
-  def apply(doc: String): IO[Rules] = parse(YamlParser(doc))
+  def apply(doc: String): IO[Rules] =
+    YamlParser(doc).flatMap(parse)
 
   def apply(path: Option[Path]): IO[Rules] =
     path
