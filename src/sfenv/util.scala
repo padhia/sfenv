@@ -38,7 +38,7 @@ def colorizeHelp(
 ): String =
   val reset  = "\u001b[0m"
   val header = """(.+):""".r
-  val inline = raw"""(--[a-zA-Z][a-zA-Z0-9-]*)|((?<!-)-[a-zA-Z](?![a-zA-Z0-9-]))|(<[a-zA-Z][a-zA-Z0-9-]*>)""".r
+  val inline = raw"""(--[a-zA-Z][a-zA-Z0-9-]*)|(\s-[a-zA-Z][ ,])|(<[a-zA-Z][a-zA-Z0-9-]*>)""".r
 
   def colorLine(line: String): String =
     if header.matches(line) then s"$h$line$reset"

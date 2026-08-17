@@ -1,11 +1,12 @@
 package sfenv
-package rules
+
+import cats.effect.unsafe.implicits.global
 
 import munit.FunSuite
 
 class YamlParserSuite extends FunSuite:
 
-  private def parse(yaml: String) = YamlParser(yaml.stripMargin)
+  private def parse(yaml: String) = YamlParser(yaml.stripMargin).unsafeRunSync()
 
   test("merge key - anchor fields are inlined into child map"):
     val child = parse("""
@@ -63,16 +64,16 @@ class YamlParserSuite extends FunSuite:
     assert(json.get("x").isEmpty)                     // x is NOT inlined into root
 
   test("scalar types - boolean"):
-    val json = YamlParser("t: true\nf: false")
+    val json = parse("t: true\nf: false")
     assertEquals(json("t").asBool.value, true)
     assertEquals(json("f").asBool.value, false)
 
   test("scalar types - integer"):
-    assertEquals(YamlParser("n: 42")("n").asNum.asLong, 42L)
+    assertEquals(parse("n: 42")("n").asNum.asLong, 42L)
 
   test("scalar types - null"):
-    assert(YamlParser("value: null")("value").isNull)
+    assert(parse("value: null")("value").isNull)
 
   test("scalar types - sequence"):
-    val actual = YamlParser("items:\n  - a\n  - b\n  - c")("items").asVector.map(_.asStr.value).toList
+    val actual = parse("items:\n  - a\n  - b\n  - c")("items").asVector.map(_.asStr.value).toList
     assertEquals(actual, List("a", "b", "c"))

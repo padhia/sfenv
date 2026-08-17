@@ -37,7 +37,7 @@ object Main extends IOApp:
       _     <- IO.println(rules.resolve(env).adminRoleSqls)
     yield ExitCode.Success
 
-  private val version = "0.3.0-RC2"
+  private val version = "0.3.0-RC3"
 
   private val helpText =
     val dropChoices = GenDrop.values.map(_.toString().toLowerCase()).mkString("|")

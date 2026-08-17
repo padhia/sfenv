@@ -7,11 +7,13 @@
 All artifacts listed are at their latest versions
 
 - Scala 3
-- mill, build tool
+- mill, build tool using Scala native for building
 - cats-effect and cats lirbaries
 - fabric, for parsing JSON AST
 - decline, for command-line parsing
-- snakeyaml-engine, for parsing YAML to AST
+- libfyaml C library for parsing YAML
+- Pkl is installed as an external, OS level package
+- munit as the test framework
 
 The project uses `flake.nix` to create the development environment
 

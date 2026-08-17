@@ -1,5 +1,4 @@
 package sfenv
-package rules
 
 import cats.effect.unsafe.implicits.global
 

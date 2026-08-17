@@ -1,9 +1,13 @@
 //| mill-jvm-version: system
 package build
 
+import scala.sys.process.*
+
 import mill.*
 import mill.scalalib.*
 import mill.scalalib.publish.*
+import mill.scalanativelib.*
+import mill.scalanativelib.api.*
 
 object V:
   val scala     = "3.8.4"
@@ -11,23 +15,26 @@ object V:
   val snakeyaml = "3.1.1"
   val decline   = "2.6.2"
   val munit     = "1.3.5"
+  val native    = "0.5.12"
 
-object `package` extends ScalaModule with PublishModule with NativeImageModule:
-  override def scalaVersion   = V.scala
-  override def publishVersion = "0.3.0-RC2"
-  override def scalacOptions  = Seq("-deprecation", "-feature", "-Wunused:all", "-release:17")
-  override def artifactName   = "sfenv"
-  override def mainClass      = Some("sfenv.Main")
+trait SfEnvNative extends ScalaNativeModule:
+  override def scalaNativeVersion   = V.native
+  override def releaseMode          = ReleaseMode.ReleaseFast
+  override def nativeLinkingOptions =
+    // LIBFYAML_LIBS must be set in Nix-based environments and Windows CI.
+    // Falls back to pkg-config for non-Nix Unix development installs.
+    val flags = sys.env
+      .get("LIBFYAML_LIBS")
+      .getOrElse("pkg-config --libs libfyaml".!!)
+      .trim
+      .split(" ")
+      .filter(_.nonEmpty)
+      .toSeq
+    super.nativeLinkingOptions() ++ flags
 
-  override def nativeImageOptions = Seq("--no-fallback", "-J--sun-misc-unsafe-memory-access=allow")
-
-  def mvnDeps = Seq(
-    mvn"com.monovore::decline-effect:${V.decline}",
-    mvn"org.typelevel::fabric-io:${V.fabric}",
-    mvn"org.snakeyaml:snakeyaml-engine:${V.snakeyaml}",
-  )
-
-  def pomSettings = PomSettings(
+trait SfEnvPub extends PublishModule:
+  override def publishVersion = "0.3.0-RC3"
+  override def pomSettings    = PomSettings(
     description = "Manage Snowflake environments declaratively",
     organization = "org.padhia",
     url = "https://github.com/padhia/sfenv",
@@ -36,5 +43,18 @@ object `package` extends ScalaModule with PublishModule with NativeImageModule:
     developers = Seq(Developer("padhia", "Paresh Adhia", "https://github.com/padhia"))
   )
 
-  object test extends ScalaTests with TestModule.Munit:
-    def mvnDeps = Seq(mvn"org.scalameta::munit:${V.munit}")
+object `package` extends ScalaModule with SfEnvNative with SfEnvPub:
+  override def scalaVersion  = V.scala
+  override def scalacOptions = Seq("-deprecation", "-feature", "-Wunused:all", "-release:17")
+  override def artifactName  = "sfenv"
+
+  override def mvnDeps = Seq(
+    mvn"com.monovore::decline-effect::${V.decline}",
+    mvn"org.typelevel::fabric-core::${V.fabric}",
+  )
+
+  object test extends ScalaTests with TestModule.Munit with ScalaNativeTests:
+    def mvnDeps = Seq(
+      mvn"org.scalameta::munit::${V.munit}",
+      mvn"org.scala-native::test-interface::${V.native}",
+    )

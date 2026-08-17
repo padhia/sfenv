@@ -18,54 +18,65 @@ jobs:
             arch: x86_64
             runner: ubuntu-latest
             ext: ""
+            src: result/bin/sfenv
           - os: linux
             arch: aarch64
             runner: ubuntu-24.04-arm
             ext: ""
+            src: result/bin/sfenv
           - os: macos
             arch: aarch64
             runner: macos-latest
             ext: ""
+            src: result/bin/sfenv
           - os: windows
             arch: x86_64
             runner: windows-latest
             ext: ".exe"
+            src: out/nativeLink.dest/out.exe
     steps:
       - uses: actions/checkout@v7
 
-      - name: Setup GraalVM
-        uses: graalvm/setup-graalvm@v1
-        with:
-          java-version: "25"
-          distribution: "graalvm"
-          componenets: "native-image"
-
-      - name: install mill (unix)
+      - name: install nix
         if: matrix.os != 'windows'
+        uses: cachix/install-nix-action@v31.11.1
+
+      - name: build libfyaml (windows)
+        if: matrix.os == 'windows'
         run: |
-          curl -L https://repo1.maven.org/maven2/com/lihaoyi/mill-dist/1.1.7/mill-dist-1.1.7-mill.sh -o mill
-          chmod +x mill
+          git clone --depth 1 --branch v0.9.6 https://github.com/pantoniou/libfyaml.git
+          cmake -S libfyaml -B libfyaml/build -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF -DBUILD_SHARED_LIBS=OFF -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded
+          cmake --build libfyaml/build --config Release
+
+      - name: set up jdk (windows)
+        if: matrix.os == 'windows'
+        uses: actions/setup-java@v5
+        with:
+          java-version: "21"
+          distribution: "temurin"
 
       - name: install mill (windows)
         if: matrix.os == 'windows'
-        run: |
-          curl -L https://repo1.maven.org/maven2/com/lihaoyi/mill-dist/1.1.7/mill-dist-1.1.7-mill.bat -o mill.bat
+        run: curl -L https://repo1.maven.org/maven2/com/lihaoyi/mill-dist/1.1.7/mill-dist-1.1.7-mill.bat -o mill.bat
 
-      - name: build native image (unix)
+      - name: build (linux/macos)
         if: matrix.os != 'windows'
-        run: ./mill nativeImage
+        run: nix build .#
 
-      - name: build native image (windows)
+      - name: build (windows)
         if: matrix.os == 'windows'
-        run: .\mill.bat nativeImage
+        env:
+          # @link("fyaml") in YamlParser.scala makes Scala Native inject -lfyaml
+          # unconditionally.  lld-link resolves -lfyaml as fyaml.lib by searching
+          # the library path, so add the build output directory as a search path.
+          LIBFYAML_LIBS: "-L${{ github.workspace }}/libfyaml/build/Release"
+        run: .\mill.bat --no-server nativeLink
 
-      - name: rename binary
+      - name: stage binary
         shell: bash
-        run: mv "out/nativeImage.dest/native-executable" "out/nativeImage.dest/sfenv-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.ext }}"
+        run: cp ${{ matrix.src }} sfenv-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.ext }}
 
       - name: upload release asset
         uses: softprops/action-gh-release@v3
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          files: out/nativeImage.dest/sfenv-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.ext }}
+          files: sfenv-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.ext }}

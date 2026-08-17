@@ -3,25 +3,14 @@ version: "3"
 tasks:
   init:
     cmds:
+      - rm -rf .bloop/ .metals/ .bsp/
       - mill --bsp-install
-
-  native-image:
-    aliases: [ni]
-    cmds:
-      - mill --no-server nativeImage
-      - ln -fs "$PWD/out/nativeImage.dest/native-executable" "$HOME/.local/bin/${PWD##*/}"
 
   build:
     aliases: [b]
     cmds:
-      - mill launcher
-      - ln -fs "$PWD/out/launcher.dest/run" "$HOME/.local/bin/${PWD##*/}"
-
-  assembly:
-    aliases: [jar]
-    cmds:
-      - mill assembly
-      - ln -fs "$PWD/out/assembly.dest/out.jar" "$HOME/.local/bin/${PWD##*/}"
+      - mill nativeLink
+      - ln -fs "$PWD/out/nativeLink.dest/out" "$HOME/.local/bin/${PWD##*/}"
 
   rebuild:
     aliases: [rb]
