@@ -33,14 +33,11 @@ object Role:
       private def permit(ar: RoleName): State[Set[DbSch], Chain[Permit[String]]] = State: seen =>
         ar match
           case RoleName.Access(db, sch, _) if !seen.contains((db, sch)) =>
-            (
-              seen + ((db, sch)),
-              Chain(
-                Permit(show"USAGE ON DATABASE $db", role.roleName, grantor = Admin.Sec),
-                Permit(show"USAGE ON SCHEMA $db.$sch", role.roleName, grantor = Admin.Sec),
-                Permit(ar.show, role.roleName, grantor = Admin.Sec)
-              )
-            )
+            val useDb =
+              if seen.exists(_._1 == db) then Chain.empty
+              else Chain(Permit(show"USAGE ON DATABASE $db", role.roleName, grantor = Admin.Sys))
+            val useSch = Permit(show"USAGE ON SCHEMA $db.$sch", role.roleName, grantor = Admin.Sys)
+            (seen + ((db, sch)), useDb ++ Chain(useSch, Permit(ar.show, role.roleName, grantor = Admin.Sec)))
           case _ => (seen, Chain(Permit(ar.show, role.roleName, grantor = Admin.Sec)))
 
       private def permit(accRoles: Seq[RoleName], f: Permit[String] => SqlStmt): Chain[SqlStmt] =
