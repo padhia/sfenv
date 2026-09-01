@@ -33,7 +33,7 @@ trait SfEnvNative extends ScalaNativeModule:
     super.nativeLinkingOptions() ++ flags
 
 trait SfEnvPub extends PublishModule:
-  override def publishVersion = "0.3.0-RC3"
+  override def publishVersion = "0.3.0-RC4"
   override def pomSettings    = PomSettings(
     description = "Manage Snowflake environments declaratively",
     organization = "org.padhia",

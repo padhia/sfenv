@@ -60,7 +60,7 @@ YAML and JSON are supported natively. `.pkl` files are supported if [Pkl cli](ht
 - **Inheritance** — `(defaults.sch) { transient = true }` extends a base template with one override
 - **Expression reuse** — `QA = DEV` copies an environment's permission block without repetition
 
-See [`examples/defaults.pkl`](https://github.com/padhia/sfenv/tree/main/examples/defaults.pkl) and [`examples/example.pkl`](https://github.com/padhia/sfenv/tree/main/examples/example.pkl) for a working Pkl example.
+See [`examples/defaults.pkl`](https://github.com/padhia/sfenv/tree/main/examples/defaults.pkl) and [`examples/example.pkl`](https://github.com/padhia/sfenv/tree/main/examples/example.pkl) for a working Pkl example. `example.pkl` imports `defaults.pkl` via `modulepath:` (see [Integrating with Git](#integrating-with-git) for why), which `sfenv` resolves relative to its working directory — run it from within `examples/` (e.g. `cd examples && sfenv example.pkl`), not from the repo root.
 
 ## Maintaining State
 
@@ -93,8 +93,18 @@ Typical use cases include:
     sfenv previous-good.yaml --diff current-bad.yaml
     ```
 
+> [!WARNING]
+> **Pkl rules files with relative imports do not work with `git difftool`.** `git difftool` copies only the diffed file itself into an isolated temporary directory — files it `import`s or `amends` via a relative path (e.g. `import "defaults.pkl"`) will not be present alongside it, causing Pkl to fail with a "Cannot find module" error. This limitation does not affect normal (non-`difftool`) invocations of `sfenv`, since the working directory still has all sibling files available.
+>
+> **Workaround:** use Pkl's [`modulepath:`](https://pkl-lang.org/main/current/language-reference/index.html#modulepath-uris) scheme instead of a plain relative path for any import shared across files that may be diffed via `git difftool`:
+> ```pkl
+> import "modulepath:/defaults.pkl"   // instead of: import "defaults.pkl"
+> ```
+> `sfenv` always runs `pkl eval --module-path <current-working-directory>`, so `modulepath:` imports resolve against the directory `sfenv`/`git difftool` was invoked from (typically the repo root) rather than the location of the file being evaluated — which still works correctly even when that file is an isolated temp copy. This has no effect on files that don't use `modulepath:` imports; those must still avoid relative `import`/`amends`, or use YAML/JSON instead, to work with `git difftool`.
+
 ## Current Limitations
 
 1. `sfenv` is a pure SQL generator — it does not connect to Snowflake, does not inspect any existing account state, and does not validate objects or privileges against a live environment. All SQL is produced solely from the rules file.
 1. Not all Snowflake object types are supported. Managing Databases, Schemas, Warehouses, Roles, Users, and permissions (RBAC) is fully supported.
 1. There is no strict validation of object parameters or privileges. Any unrecognized object parameters or privileges are reproduced verbatim in the generated SQL, and errors will only surface when the SQL is executed against Snowflake.
+1. Pkl rules files that use relative `import`/`amends` (e.g. `import "defaults.pkl"`) cannot be used with `git difftool`, since only the diffed file is copied into an isolated temp directory and sibling files it depends on are unavailable — use `modulepath:` imports instead (see [Integrating with Git](#integrating-with-git)).

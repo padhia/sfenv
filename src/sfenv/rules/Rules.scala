@@ -63,11 +63,11 @@ case class Rules(
     )
 
 object Rules:
-  private def parse(x: Json): IO[Rules] =
-    IO.fromEither(Try(x.as[Rules]).toEither.leftMap(e => AppError.RulesParsingError(e.getMessage())))
+  private def parse(x: Json, path: Option[Path] = None): IO[Rules] =
+    IO.fromEither(Try(x.as[Rules]).toEither.leftMap(e => AppError.RulesParsingError(e.getMessage(), path)))
 
   def apply(doc: String): IO[Rules] =
-    YamlParser(doc).flatMap(parse)
+    YamlParser(doc).flatMap(parse(_))
 
   def apply(path: Option[Path]): IO[Rules] =
     path
@@ -79,5 +79,6 @@ object Rules:
       exists <- IO.blocking(Files.exists(path))
       _      <- IO.raiseUnless(exists)(AppError.FileNotFound(path))
       rules  <-
-        if path.toString.endsWith(".pkl") then PklParser(path).flatMap(json => parse(json)) else apply(Files.readString(path))
+        if path.toString.endsWith(".pkl") then PklParser(path).flatMap(json => parse(json, Some(path)))
+        else apply(Files.readString(path))
     yield rules

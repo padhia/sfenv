@@ -22,6 +22,8 @@ private object libfyaml:
 
   // Node Inspection Elements
   def fy_node_get_type(fyn: FYNode): CInt                                = extern
+  def fy_node_get_style(fyn: FYNode): CInt                               = extern
+  def fy_node_is_null(fyn: FYNode): CBool                                = extern
   def fy_node_resolve_alias(fyn: FYNode): FYNode                         = extern
   def fy_node_get_scalar(fyn: FYNode, lenOut: Ptr[CSize]): Ptr[Byte]     = extern
   def fy_node_sequence_get_by_index(fyn: FYNode, index: CInt): FYNode    = extern
@@ -36,6 +38,8 @@ object YamlParser:
   private val FYNT_SCALAR: Int   = 0
   private val FYNT_SEQUENCE: Int = 1
   private val FYNT_MAPPING: Int  = 2
+
+  private val FYNS_PLAIN: Int = 2
 
   // fy_node_get_tag returns NULL for implicitly-typed scalars, so we fall back
   // to text matching for the YAML 1.2 core-schema null literals.
@@ -81,14 +85,29 @@ object YamlParser:
   private def convertNode(fyn: libfyaml.FYNode): Json =
     libfyaml.fy_node_get_type(fyn) match
       case FYNT_SCALAR =>
-        val tag  = libfyaml.fy_node_get_tag.callAsScala(fyn)
-        val text = libfyaml.fy_node_get_scalar.callAsScala(fyn)
+        val tag   = libfyaml.fy_node_get_tag.callAsScala(fyn)
+        val text  = libfyaml.fy_node_get_scalar.callAsScala(fyn)
+        val style = libfyaml.fy_node_get_style(fyn)
 
-        if tag.endsWith(":int") then NumInt(text.toLong)
-        else if tag.endsWith(":bool") then Bool(text.toLowerCase == "true" || text.toLowerCase == "yes")
-        else if tag.endsWith(":float") then NumDec(text.toDouble)
-        else if tag.endsWith(":null") || (tag.isEmpty && isNullLiteral(text)) then Null
-        else Str(text)
+        if tag.nonEmpty then
+          if tag.endsWith(":int") then NumInt(text.toLong)
+          else if tag.endsWith(":bool") then Bool(text.equalsIgnoreCase("true") || text.equalsIgnoreCase("yes"))
+          else if tag.endsWith(":float") then NumDec(text.toDouble)
+          else if tag.endsWith(":null") then Null
+          else Str(text)
+        else if style != FYNS_PLAIN then Str(text)
+        else if libfyaml.fy_node_is_null(fyn) || isNullLiteral(text) then Null
+        else if text.equalsIgnoreCase("true") || text.equalsIgnoreCase("yes") || text.equalsIgnoreCase("on") then
+          Bool(true)
+        else if text.equalsIgnoreCase("false") || text.equalsIgnoreCase("no") || text.equalsIgnoreCase("off") then
+          Bool(false)
+        else
+          text.toLongOption match
+            case Some(l) => NumInt(l)
+            case None =>
+              text.toDoubleOption match
+                case Some(d) => NumDec(d)
+                case None    => Str(text)
 
       case FYNT_SEQUENCE =>
         val count = libfyaml.fy_node_sequence_item_count(fyn)

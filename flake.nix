@@ -91,7 +91,7 @@
 
           packages.default = pkgs.stdenv.mkDerivation {
             pname = "sfenv";
-            version = "0.3.0-RC3";
+            version = "0.3.0-RC4";
             src = ./.;
 
             inherit nativeBuildInputs buildInputs;

@@ -64,12 +64,27 @@ class YamlParserSuite extends FunSuite:
     assert(json.get("x").isEmpty)                     // x is NOT inlined into root
 
   test("scalar types - boolean"):
-    val json = parse("t: true\nf: false")
+    val json = parse("t: true\nf: false\nqt: \"true\"")
     assertEquals(json("t").asBool.value, true)
+    assert(json("t").isBool)
     assertEquals(json("f").asBool.value, false)
+    assert(json("f").isBool)
+    assertEquals(json("qt").asStr.value, "true")
+    assert(json("qt").isStr)
 
   test("scalar types - integer"):
-    assertEquals(parse("n: 42")("n").asNum.asLong, 42L)
+    val json = parse("n: 42\nqn: \"42\"")
+    assertEquals(json("n").asNum.asLong, 42L)
+    assert(json("n").isNum)
+    assertEquals(json("qn").asStr.value, "42")
+    assert(json("qn").isStr)
+
+  test("scalar types - float"):
+    val json = parse("f: 3.14\nqf: \"3.14\"")
+    assertEquals(json("f").asNum.asDouble, 3.14)
+    assert(json("f").isNum)
+    assertEquals(json("qf").asStr.value, "3.14")
+    assert(json("qf").isStr)
 
   test("scalar types - null"):
     assert(parse("value: null")("value").isNull)
@@ -77,3 +92,4 @@ class YamlParserSuite extends FunSuite:
   test("scalar types - sequence"):
     val actual = parse("items:\n  - a\n  - b\n  - c")("items").asVector.map(_.asStr.value).toList
     assertEquals(actual, List("a", "b", "c"))
+
