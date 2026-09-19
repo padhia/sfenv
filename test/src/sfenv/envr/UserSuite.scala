@@ -1,57 +1,84 @@
 package sfenv
 package envr
 
+import scala.collection.immutable.SortedSet
+
 import munit.FunSuite
 
 class UserSuite extends FunSuite:
   val user = User(
     Ident("jdoe"),
-    User.Value(meta =
-      ObjMeta(
-        Props(
-          "default_role"            -> "RL_DEV_DBA",
-          "default_warehouse"       -> "WH_DEV_LOAD",
-          "default_namespace"       -> (Ident("EDW_DEV"), Ident("CUSTOMER")),
-          "default_secondary_roles" -> "('ALL')",
-          "comment"                 -> "John Doe"
-        )
+    meta = ObjMeta(
+      Props(
+        "default_role"            -> "RL_DEV_DBA",
+        "default_warehouse"       -> "WH_DEV_LOAD",
+        "default_secondary_roles" -> "('ALL')",
+        "comment"                 -> "John Doe"
       )
-    )
+    ),
+    defaultNamespace = Some("EDW_DEV.CUSTOMER")
   )
 
   test("create"):
     val expected = List(
       """|CREATE USER IF NOT EXISTS JDOE
-         |    COMMENT = 'John Doe'
          |    DEFAULT_NAMESPACE = EDW_DEV.CUSTOMER
+         |    COMMENT = 'John Doe'
          |    DEFAULT_ROLE = RL_DEV_DBA
          |    DEFAULT_SECONDARY_ROLES = ('ALL')
-         |    DEFAULT_WAREHOUSE = WH_DEV_LOAD""".stripMargin,
+         |    DEFAULT_WAREHOUSE = WH_DEV_LOAD""".stripMargin
     )
     assertEquals(user.create.sqls, expected)
 
   test("skip create"):
-    val user2 = user.copy(value = user.value.copy(createObj = false))
-    assertEquals(user2.create.sqls.length, 0)
+    val existing = user.copy(createObj = false)
+    assertEquals(existing.create.sqls, Nil)
+    assertEquals(existing.drop.sqls, Nil)
 
-  test("drop"):
+  test("drop removes the user without a namespace cleanup statement"):
     assertEquals(user.drop.sqls, List("DROP USER IF EXISTS JDOE"))
 
-  test("alter"):
-    val user2 = user.copy(value =
-      user.value.copy(meta =
-        ObjMeta(
-          Props(
-            "default_role"            -> "RL_DEV_DBA",
-            "default_warehouse"       -> "WH_DEV_LOAD",
-            "default_namespace"       -> (Ident("EDW_DEV"), Ident("CUSTOMER")),
-            "default_secondary_roles" -> "()",
-          )
+  test("alter unrelated properties leaves namespace unchanged"):
+    val changed = user.copy(meta =
+      ObjMeta(
+        Props(
+          "default_role"            -> "RL_DEV_DBA",
+          "default_warehouse"       -> "WH_DEV_LOAD",
+          "default_secondary_roles" -> "()"
         )
       )
     )
-    val expected = List(
-      "ALTER USER IF EXISTS JDOE SET DEFAULT_SECONDARY_ROLES = ()",
-      "ALTER USER IF EXISTS JDOE UNSET COMMENT"
+    assertEquals(
+      changed.update(user).sqls,
+      List(
+        "ALTER USER IF EXISTS JDOE SET DEFAULT_SECONDARY_ROLES = ()",
+        "ALTER USER IF EXISTS JDOE UNSET COMMENT"
+      )
     )
-    assertEquals(user2.update(user).sqls, expected)
+
+  test("namespace addition change removal and no change"):
+    val absent  = user.copy(defaultNamespace = None)
+    val changed = user.copy(defaultNamespace = Some("OTHER.PUBLIC"))
+    assertEquals(user.update(absent).sqls, List("ALTER USER IF EXISTS JDOE SET DEFAULT_NAMESPACE = EDW_DEV.CUSTOMER"))
+    assertEquals(changed.update(user).sqls, List("ALTER USER IF EXISTS JDOE SET DEFAULT_NAMESPACE = OTHER.PUBLIC"))
+    assertEquals(absent.update(user).sqls, List("ALTER USER IF EXISTS JDOE UNSET DEFAULT_NAMESPACE"))
+    assertEquals(user.update(user).sqls, Nil)
+    assertEquals(absent.update(absent).sqls, Nil)
+
+  test("sorted-set diff detects namespace-only changes"):
+    val changed = user.copy(defaultNamespace = Some("OTHER"))
+    assertEquals(
+      summon[CDA[SortedSet[User]]].update(SortedSet(changed))(SortedSet(user)).sqls,
+      List("ALTER USER IF EXISTS JDOE SET DEFAULT_NAMESPACE = OTHER")
+    )
+
+  test("namespace updates apply to externally managed users"):
+    val existing = user.copy(createObj = false)
+    val removed  = existing.copy(defaultNamespace = None)
+    assertEquals(removed.update(existing).sqls, List("ALTER USER IF EXISTS JDOE UNSET DEFAULT_NAMESPACE"))
+
+  test("create without namespace and with database-only namespace"):
+    val plain = User(Ident("plain"))
+    assertEquals(plain.create.sqls, List("CREATE USER IF NOT EXISTS PLAIN"))
+    val databaseOnly = plain.copy(defaultNamespace = Some("EDW_DEV"))
+    assertEquals(databaseOnly.create.sqls, List("CREATE USER IF NOT EXISTS PLAIN DEFAULT_NAMESPACE = EDW_DEV"))

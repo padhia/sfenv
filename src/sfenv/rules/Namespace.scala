@@ -13,10 +13,10 @@ enum Namespace:
   case Schema(db: String, sch: String)
   case Database(db: String)
 
-  def resolve(using n: NameResolver): PropVal =
+  def resolve(using n: NameResolver): String =
     this match
-      case Schema(db, sch) => PropVal((n.db(db), n.sch(db, sch)))
-      case Database(db)    => PropVal(n.db(db))
+      case Schema(db, sch) => show"${n.db(db)}.${n.sch(db, sch)}"
+      case Database(db)    => n.db(db).show
 
 object Namespace:
   given RW[Namespace] = RW.from(

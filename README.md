@@ -1,35 +1,46 @@
 # sfenv
 
-`sfenv` helps manage top-level Snowflake objects and their permissions in multiple _environments_.
+`sfenv` is a management utility designed to oversee top-level Snowflake objects and their corresponding access permissions across multiple _environments_.
 
-An environment refers to an isolated set of Snowflake objects. Typical environments are DEV, QA, and PROD. Each environment, ideally, has the same set of objects, except that they may differ due to their current stage in their lifecycle. For example, objects in the DEV environment may have changes that are not yet migrated to higher environments.
+An environment represents a designated collection of Snowflake objects generated from a single baseline configuration template, isolated from one another. Standard environments include Development (DEV), Quality Assurance (QA), and Production (PROD). Ideally, each environment mirrors the same target object definitions, varying only by their specific stage within the deployment lifecycle. For instance, modifications residing in DEV may not yet be promoted to upstream environments.
 
-Snowflake objects and permissions are declaratively defined in a YAML, JSON, or Pkl file (called _Rules File_). See the [examples/](https://github.com/padhia/sfenv/tree/main/examples) folder for samples and [RULES.md](./RULES.md) for a detailed description of rules specification.
+Snowflake objects and role-based privilege assignments are declaratively specified within a structured YAML, JSON, or Pkl configuration file (referred to as the _Rules File_). Refer to the [examples/](https://github.com/padhia/sfenv/tree/main/examples) directory for sample implementations and [RULES.md](./RULES.md) for comprehensive specifications regarding rule definitions.
+
+**Notes**:
+
+`sfenv` operates strictly as a declarative SQL generator, synthesizing DDL and DCL statements exclusively from the provided input rules file. Key operational boundaries include:
+
+- No active database connections are established to inspect live object states or privileges.
+- No automatic synchronization is performed between existing Snowflake deployments and local configurations.
+- Unrecognized or custom properties (particularly for databases, schemas, and warehouses) are passed through into the generated SQL output verbatim.
+- Comprehensive support is provided for managing Databases, Schemas, Warehouses, Roles, Users, and Role-Based Access Control (RBAC) privileges; support for other top-level objects maybe missing
 
 ## Installation
 
-Download the latest binary for your platform from the [releases page](https://github.com/padhia/sfenv/releases) on GitHub and place it on your `PATH`.
+Download the latest release binary for your target architecture from the official [GitHub Releases](https://github.com/padhia/sfenv/releases) repository and ensure executable availability within system `PATH`.
 
 ## How It Works
 
-`sfenv` implements Snowflake's [recommended RBAC pattern](https://docs.snowflake.com/en/user-guide/security-access-control-considerations): fine-grained _Access Roles_ (database roles scoped to a schema or warehouse) are granted to coarse-grained _Functional Roles_ (account-level roles), which are then assigned to users. This separates _what_ a role can access from _who_ holds that role.
+`sfenv` aligns with Snowflake's [recommended RBAC architecture](https://docs.snowflake.com/en/user-guide/security-access-control-considerations): granular _Access Roles_ (database-level roles scoped to specific schemas or warehouses) are granted to broader _Functional Roles_ (account-level roles), which are subsequently assigned to individual user accounts. This architectural separation enforces proper decoupling between privilege scope and user identity.
 
-A key feature is environment-specific permissions: a single rules file can grant developers read-only access in PROD while granting them full read-write access in DEV or QA — no duplication required.
+A central capability is environment-aware authorization modeling: a consolidated rules file can grant read-only privileges to developers in Production while provisioning read-write privileges within Development or QA environments without requiring configuration redundancy.
 
-`sfenv` reads a rules file and writes SQL statements to stdout. Pipe the output directly to your Snowflake client to apply it:
+`sfenv` parses the target rules file and outputs synthesized DDL/DCL statements to standard output. The resulting stream can be piped directly into the Snowflake CLI for immediate execution:
 
 ```sh
 sfenv -e PROD my-rules.yaml | snow sql -c <connection-name> -i
 ```
 
+It is strongly recommended that the generated output be verified before submitting it to Snowflake for execution.
+
 ## Features
 
-- One rules file manages all environments (DEV, QA, PROD, …)
-- Databases, Schemas, Warehouses, Shares, Users, Application IDs, and RBAC all in one place
-- Access Roles and Functional Roles follow Snowflake best practices
-- Environment-specific permissions within a single file (e.g. `RWC` in DEV, `R` in PROD)
-- Incremental SQL generation via `--diff`: only changes since a previous version are emitted
-- Rules files can be written in YAML, JSON, or [Pkl](https://pkl-lang.org)
+- Consolidated management of all deployment environments (DEV, QA, PROD, etc.) within a single configuration file
+- Unified definitions for Databases, Schemas, Warehouses, Shares, Users, Application IDs, and RBAC policies
+- Adherence to Snowflake best practices via dual-layer Access and Functional Role abstractions
+- Environment-specific access controls declared concisely (e.g., `RWC` in DEV versus [`R`](https://pkl-lang.org) in PROD)
+- Incremental deployment support via the `--diff` option, emitting SQL strictly for net-new or modified declarations
+- Multi-format support for rule definitions, including YAML, JSON, and [Pkl](https://pkl-lang.org)
 
 ## Usage
 
@@ -38,73 +49,68 @@ sfenv [-e <env>] [--admin-roles] [<rules-file>]
 sfenv [-e <env>] [-d <path>] [--drop <choice>] [-F] [<rules-file>]
 ```
 
-Where:
+Command Parameters:
 
-- `<rules-file>`: A YAML, JSON, or Pkl file containing object and privileges definitions. Reads from stdin when omitted.
-- `-e, --env ENV`: An _environment_ name, to derive object and role names (default: `$SFENV` or `DEV`)
-- `--admin-roles`: Generate SQL to create the environment's `secadm` and `dbadm` admin roles. Run this once before applying the main environment SQL for the first time.
-- `-d, --diff <rules>`: When specified, SQL statements are generated only for the differences between the given rules file and the main rules file
-- `--gen-drop <all|local|none>`: Determine what `DROP` SQL statements are generated without being commented out
-    - `all`: all `DROP` statements are generated without comments
-    - `local`: only `DROP` statements that may lead to data loss (includes local databases and schemas, but not _shared_ databases) are commented out
-    - `none`: all `DROP` statements are commented out
-- `-F, --only-future`: When generating permissions for objects at the schema level, generate only `FUTURE` grants, and skip `ALL` grants, which can be expensive to run for large schemas
+- `<rules-file>`: Specifies the input YAML, JSON, or Pkl configuration file containing object and privilege specifications. Reads from standard input if omitted.
+- `-e, --env ENV`: The targeted _environment_ identifier used to contextualize object and role naming conventions (default: `$SFENV` or `DEV`).
+- `--admin-roles`: Generates foundational SQL to initialize administrative roles (`secadm` and `dbadm`) for the environment. Should be executed prior to applying primary environment configurations.
+- `-d, --diff <rules>`: Enables differential mode, generating SQL statements strictly for modifications detected between the baseline rules file and the current rules specification.
+- `--gen-drop <all|local|none>`: Controls execution behavior for destructive `DROP` SQL directives.
+    - `all`: Emits all `DROP` statements active for direct execution.
+    - `local`: Comments out potentially destructive `DROP` statements affecting local databases and schemas while leaving non-destructive statements active.
+    - `none`: Comments out all `DROP` statements across the generated script.
+- `-F, --only-future`: Restricts schema-level grant generation exclusively to `FUTURE` privileges, bypassing explicit `ALL` grants to optimize execution performance on expansive schemas.
 
-`--gen-drop` and `--only-future` can also be set as `drop` and `only-future` respectively in the `options` section of the rules file; CLI flags take precedence over file-level settings.
+The `--gen-drop` and `--only-future` parameters may also be declared persistent under the `options` block within the rules file using `drop` and `only-future` properties, respectively. Command-line flags explicitly override configuration file settings.
 
 ## Choosing a Rules File Format
 
-YAML and JSON are supported natively. `.pkl` files are supported if [Pkl cli](https://github.com/apple/pkl/releases) is available in the `PATH`. Pkl offers additional benefits for larger configurations:
+YAML and JSON formats are natively supported. Support for `.pkl` configurations is enabled when the [Pkl CLI](https://github.com/apple/pkl/releases) utility is present within the system `PATH`. Utilizing Pkl introduces key modularity features for large-scale infrastructure specifications:
 
-- **Imports and reusable defaults** — define schema or warehouse templates once in a shared file and extend them per object
-- **Inheritance** — `(defaults.sch) { transient = true }` extends a base template with one override
-- **Expression reuse** — `QA = DEV` copies an environment's permission block without repetition
+- **Modular Imports & Templates** — Define standardized schema or warehouse templates in shared modules and extend them per object declaration.
+- **Object Inheritance** — Parameterize base configurations (e.g., `(defaults.sch) { transient = true }`) to inherit default settings while applying targeted property overrides.
+- **Expression Reuse** — Reference existing environment privilege definitions directly (e.g., `QA = DEV`) to reduce duplicate declarations.
 
-See [`examples/defaults.pkl`](https://github.com/padhia/sfenv/tree/main/examples/defaults.pkl) and [`examples/example.pkl`](https://github.com/padhia/sfenv/tree/main/examples/example.pkl) for a working Pkl example. `example.pkl` imports `defaults.pkl` via `modulepath:` (see [Integrating with Git](#integrating-with-git) for why), which `sfenv` resolves relative to its working directory — run it from within `examples/` (e.g. `cd examples && sfenv example.pkl`), not from the repo root.
+Reference implementations are provided in [`examples/defaults.pkl`](https://github.com/padhia/sfenv/tree/main/examples/defaults.pkl) and [`examples/example.pkl`](https://github.com/padhia/sfenv/tree/main/examples/example.pkl). Note that `example.pkl` references `defaults.pkl` via the `modulepath:` scheme (detailed under [Integrating with Git](#integrating-with-git)). Because `sfenv` resolves module paths relative to the working directory, commands must be executed directly from within the `examples/` directory (e.g., `cd examples && sfenv example.pkl`).
 
 ## Maintaining State
 
-In a limited capacity, `sfenv` supports generating SQL statements relative to a previous _state_. This functionality is enabled by the `--diff` option that accepts a second rules file, generally an older version of the rule file. `sfenv` can then generate SQL statements for only the differences between the two rule files. The easiest way to maintain versions of rule files is to use a version control system such as `git`.
+`sfenv` supports differential state generation to synthesize SQL updates relative to a prior baseline configuration state. This functionality is driven by the `--diff` option, which accepts a secondary rules file representing the target baseline state. Combining this capability with a version control system like `git` facilitates automated migration generation.
 
 ### Integrating with Git
 
-If you use `git` to manage rules files, you can define a custom [`difftool`](https://git-scm.com/docs/git-difftool) to generate incremental (delta) SQL statements only for the differences between two git versions.
+When managing rules files within a `git` repository, configuring a dedicated [`difftool`](https://git-scm.com/docs/git-difftool) enables seamless generation of delta SQL scripts between arbitrary commits or branches.
 
 **git configuration**
 
-Run the following command to register `sfenv` as a `difftool`.
+Execute the following command to register `sfenv` as a custom Git `difftool`:
 
 ```sh
 git config difftool.sfenv.cmd 'sfenv $REMOTE --diff $LOCAL'
 ```
 
-Example: to generate SQL statements for changes made, but not yet committed, to a rules file:
+To generate differential SQL statements reflecting uncommitted working tree changes:
 
 ```sh
 git difftool -yt sfenv my-rules.yaml
 ```
 
-Typical use cases include:
+Primary integration workflows include:
 
-- Generating SQL statements for changes made, but not yet committed, to a rules file.
-- Generating SQL statements for changes made between two environments when a separate branch tracks each environment.
-- Generating a rollback script by switching current and old versions in the sfenv command invocation.
-    ```sh
-    sfenv previous-good.yaml --diff current-bad.yaml
-    ```
+- Generating migration SQL for uncommitted local rule modifications.
+- Generating environment alignment scripts across environment-specific Git branches.
+- Synthesizing rollback DDL/DCL scripts by reversing target and baseline files during invocation.
 
-> [!WARNING]
-> **Pkl rules files with relative imports do not work with `git difftool`.** `git difftool` copies only the diffed file itself into an isolated temporary directory — files it `import`s or `amends` via a relative path (e.g. `import "defaults.pkl"`) will not be present alongside it, causing Pkl to fail with a "Cannot find module" error. This limitation does not affect normal (non-`difftool`) invocations of `sfenv`, since the working directory still has all sibling files available.
+```sh
+sfenv previous-good.yaml --diff current-bad.yaml
+```
+
+> \[\!WARNING\] **Pkl rules configurations utilizing relative imports are incompatible with `git difftool`.** `git difftool` copies only the target diff file into an isolated temporary directory. Sibling files referenced via relative import paths (e.g., `import "defaults.pkl"`) will be missing, causing evaluation errors. Standard execution modes of `sfenv` are unaffected by this limitation, as local sibling files remain available in the active working directory.
 >
-> **Workaround:** use Pkl's [`modulepath:`](https://pkl-lang.org/main/current/language-reference/index.html#modulepath-uris) scheme instead of a plain relative path for any import shared across files that may be diffed via `git difftool`:
-> ```pkl
-> import "modulepath:/defaults.pkl"   // instead of: import "defaults.pkl"
-> ```
-> `sfenv` always runs `pkl eval --module-path <current-working-directory>`, so `modulepath:` imports resolve against the directory `sfenv`/`git difftool` was invoked from (typically the repo root) rather than the location of the file being evaluated — which still works correctly even when that file is an isolated temp copy. This has no effect on files that don't use `modulepath:` imports; those must still avoid relative `import`/`amends`, or use YAML/JSON instead, to work with `git difftool`.
+> **Recommended Workaround:** Utilize Pkl's [`modulepath:`](https://pkl-lang.org/main/current/language-reference/index.html#modulepath-uris) resolution protocol instead of explicit relative file paths for any shared modules evaluated under `git difftool`:
 
-## Current Limitations
+```
+import "modulepath:/defaults.pkl"   // instead of: import "defaults.pkl"
+```
 
-1. `sfenv` is a pure SQL generator — it does not connect to Snowflake, does not inspect any existing account state, and does not validate objects or privileges against a live environment. All SQL is produced solely from the rules file.
-1. Not all Snowflake object types are supported. Managing Databases, Schemas, Warehouses, Roles, Users, and permissions (RBAC) is fully supported.
-1. There is no strict validation of object parameters or privileges. Any unrecognized object parameters or privileges are reproduced verbatim in the generated SQL, and errors will only surface when the SQL is executed against Snowflake.
-1. Pkl rules files that use relative `import`/`amends` (e.g. `import "defaults.pkl"`) cannot be used with `git difftool`, since only the diffed file is copied into an isolated temp directory and sibling files it depends on are unavailable — use `modulepath:` imports instead (see [Integrating with Git](#integrating-with-git)).
+> `sfenv` executes `pkl eval --module-path <current-working-directory>` internally, ensuring that `modulepath:` references resolve against the command invocation directory (typically the repository root) rather than the isolated temporary file path. Configurations omitting `modulepath:` imports must avoid relative module imports or utilize standard YAML/JSON formats for compatibility with `git difftool`.

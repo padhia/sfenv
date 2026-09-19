@@ -5,14 +5,9 @@ import scala.collection.immutable.SortedMap
 extension [T](xs: List[T]) def --(ys: List[T]) = xs.filterNot(ys.contains(_))
 
 enum Admin:
-  case Sec, Sys
+  case Sec, Sys, AccAdm, SecAdm, UsrAdm
 
 type EnvName = String
-
-type Props = SortedMap[Ident, PropVal]
-object Props:
-  def apply(values: (String, PropVal.PropType)*): Props = SortedMap.from(values.map((x, y) => (Ident(x), PropVal(y))))
-  def empty                                             = SortedMap.empty[Ident, PropVal]
 
 type Tags = SortedMap[Ident, SqlLiteral]
 object Tags:

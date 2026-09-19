@@ -29,7 +29,7 @@
             pkg-config
             which
             mill
-            jdk
+            jdk25
           ];
           buildInputs = with pkgs; [ libfyaml ];
           allInputs = nativeBuildInputs ++ buildInputs;

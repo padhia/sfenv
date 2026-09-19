@@ -1,9 +1,8 @@
 package sfenv
 package rules
 
-import scala.collection.immutable.SortedMap
+import scala.collection.immutable.{SortedMap, SortedSet}
 
-import collection.immutable.SortedSet
 import envr.{AccRole, RoleName}
 
 type AccGroup   = UString
@@ -12,22 +11,19 @@ type AccPrivs   = List[UString]
 type AccRoles   = SortedMap[AccGroup, SortedMap[AccObjType, AccPrivs]]
 
 extension (ar: AccRoles)
-  def resolve(mkRole: UString => RoleName): SortedMap[RoleName, AccRole.Value] =
-    def resolvePriv(name: UString, ops: SortedMap[AccObjType, AccPrivs]): (RoleName, AccRole.Value) =
-      val _ops = ops.map((k, v) => (Ident(k.value), v))
-
-      (
+  def resolve(mkRole: UString => RoleName): SortedSet[AccRole] =
+    def resolvePriv(name: UString, ops: SortedMap[AccObjType, AccPrivs]): AccRole =
+      val privileges = ops.map((kind, values) => (Ident(kind.value), values))
+      AccRole(
         mkRole(name),
-        AccRole.Value(
-          _ops.get(Ident("ROLE")).map(xs => SortedSet.from(xs.map(x => mkRole(x)))).getOrElse(SortedSet.empty),
-          _ops.filter(_._1 != Ident("ROLE")).map((t, ps) => (t, SortedSet.from(ps)))
-        )
+        privileges.get(Ident("ROLE")).map(roles => SortedSet.from(roles.map(mkRole))).getOrElse(SortedSet.empty),
+        privileges.filter(_._1 != Ident("ROLE")).map((kind, values) => (kind, SortedSet.from(values)))
       )
 
-    ar.map((k, v) => resolvePriv(k, v))
+    SortedSet.from(ar.toList.map((name, privileges) => resolvePriv(name, privileges)))
 
-  def resolve(db: String, sch: String)(using n: NameResolver): SortedMap[RoleName, AccRole.Value] =
+  def resolve(db: String, sch: String)(using n: NameResolver): SortedSet[AccRole] =
     resolve(x => RoleName.Access(n.db(db), n.sch(db, sch), n.acc(db, sch, x.value)))
 
-  def resolve(wh: String)(using n: NameResolver): SortedMap[RoleName, AccRole.Value] =
+  def resolve(wh: String)(using n: NameResolver): SortedSet[AccRole] =
     resolve(x => RoleName.Account(n.wacc(wh, x.value)))

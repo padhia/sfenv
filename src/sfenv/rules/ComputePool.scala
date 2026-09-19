@@ -7,31 +7,26 @@ import fabric.rw.*
 import envr.ObjMeta
 
 case class ComputePool(
-    minNodes: Option[Int],
-    maxNodes: Option[Int],
-    instanceFamily: Option[String],
-    tags: Option[Tags],
-    comment: Option[SqlLiteral],
+    name: String,
+    min_nodes: Int = 1,
+    max_nodes: Option[Int] = None,
+    instance_family: String = "CPU_X64_XS",
+    tags: Tags = SortedMap.empty,
+    comment: Option[SqlLiteral] = None,
     props: Props,
 ):
-  def minNodes_       = minNodes.getOrElse(1)
-  def maxNodes_       = maxNodes.getOrElse(minNodes_)
-  def instanceFamily_ = instanceFamily.getOrElse("CPU_X64_XS")
-  def objMeta         =
-    val p = SortedMap(
-      "MIN_NODES"       -> PropVal(minNodes_),
-      "MAX_NODES"       -> PropVal(maxNodes_),
-      "INSTANCE_FAMILY" -> PropVal(instanceFamily_)
-    ).map((k, v) => (Ident(k), v))
-    ObjMeta(p, tags, comment)
+  def objMeta =
+    val properties = Props(
+      "MIN_NODES"       -> min_nodes,
+      "MAX_NODES"       -> max_nodes.getOrElse(min_nodes),
+      "INSTANCE_FAMILY" -> instance_family
+    )
+    ObjMeta(properties, tags, comment)
+
+  def asEnvr(using resolver: NameResolver): envr.ComputePool =
+    envr.ComputePool(resolver.cp(name), objMeta)
 
 object ComputePool:
+  given Ordering[ComputePool] = Ordering.by(_.name)
+
   given RW[ComputePool] = propsRW
-
-  given ObjMap[ComputePool]:
-    type Key   = Ident
-    type Value = ObjMeta
-
-    extension (r: ComputePool)
-      def keyVal(k: String)(using n: NameResolver) =
-        (n.cp(k), r.objMeta)

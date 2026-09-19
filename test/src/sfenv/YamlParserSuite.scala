@@ -92,4 +92,3 @@ class YamlParserSuite extends FunSuite:
   test("scalar types - sequence"):
     val actual = parse("items:\n  - a\n  - b\n  - c")("items").asVector.map(_.asStr.value).toList
     assertEquals(actual, List("a", "b", "c"))
-

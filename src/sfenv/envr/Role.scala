@@ -4,10 +4,17 @@ package envr
 import cats.data.{Chain, State}
 import cats.syntax.all.*
 
+import scala.collection.immutable.SortedSet
+
 import SqlStmt.*
 
-case class Role(name: Ident, value: Role.Value):
-  export value.*
+case class Role(
+    name: Ident,
+    accRoles: List[RoleName],
+    sysRoles: SortedSet[SysRole],
+    meta: ObjMeta,
+    createObj: Boolean
+):
   val roleName = RoleName.Account(name)
 
 object Role:
@@ -15,7 +22,7 @@ object Role:
 
   type DbSch = (Ident, Ident)
 
-  case class Value(accRoles: List[RoleName], meta: ObjMeta, createObj: Boolean)
+  given Ordering[Role] = Ordering.by(_.name)
 
   def apply(
       name: String,
@@ -26,7 +33,7 @@ object Role:
     accRoles
       .traverse(RoleName.apply)
       .map: ar =>
-        apply(Ident(name), Value(ar, meta, createObj))
+        apply(Ident(name), ar, SortedSet.empty, meta, createObj)
 
   given CDA[Role]:
     extension (role: Role)
@@ -49,29 +56,41 @@ object Role:
           ._2
           .map(f)
 
+      private def sysRoleTC: CDA[SortedSet[SysRole]] =
+        given CDA[SysRole] = SysRole.cda(show"ROLE ${role.name}")
+        CDA.sortedSet[SysRole]
+
       private def permit = Permit(RoleName.Account(role.name), Grantee.SysAdm, grantor = Admin.Sec)
 
       def create: Chain[SqlStmt] =
+        given CDA[SortedSet[SysRole]] = sysRoleTC
+
         val ddl =
           import role.*
           if createObj
           then Chain(meta.dcl(show"${Role.kind.cr} ${name}"), role.permit.grant)
           else Chain.empty
 
-        ddl ++ role.permit(role.accRoles, _.grant)
+        ddl ++ role.sysRoles.create ++ role.permit(role.accRoles, _.grant)
 
       def drop: Chain[SqlStmt] =
+        given sr: CDA[SortedSet[SysRole]] = sysRoleTC
+
         val ddl =
           import role.*
           if createObj
           then Chain(role.permit.revoke, show"${Role.kind.dr} ${name}".dcl)
           else Chain.empty
-        role.permit(role.accRoles, _.revoke) ++ ddl
+
+        role.permit(role.accRoles, _.revoke) ++ sr.drop(role.sysRoles) ++ ddl
 
       def update(old: Role): Chain[SqlStmt] =
+        given sr: CDA[SortedSet[SysRole]] = sysRoleTC
+
         role.meta.dcl(show"${kind.alt} ${role.name}", old.meta)
           ++ role.permit(old.accRoles -- role.accRoles, _.revoke)
           ++ role.permit(role.accRoles -- old.accRoles, _.grant)
+          ++ role.sysRoles.update(old.sysRoles)
 
       def sameId(other: Role): Boolean  = role.name == other.name
       def updatable(old: Role): Boolean = true

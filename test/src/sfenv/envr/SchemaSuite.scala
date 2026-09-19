@@ -1,7 +1,7 @@
 package sfenv
 package envr
 
-import scala.collection.immutable.SortedMap
+import scala.collection.immutable.{SortedMap, SortedSet}
 
 import munit.FunSuite
 
@@ -70,9 +70,42 @@ class SchemaSuite extends FunSuite:
 
   test("alter"):
     val testSch2 =
-      testSch.copy(value = testSch.value.copy(managed = false, meta = ObjMeta(Props("data_retention_time_in_days" -> 20))))
+      testSch.copy(managed = false, meta = ObjMeta(Props("data_retention_time_in_days" -> 20)))
     val expected = List(
       "ALTER SCHEMA IF EXISTS DEV_DB.SCH DISABLE MANAGED ACCESS",
       "ALTER SCHEMA IF EXISTS DEV_DB.SCH SET DATA_RETENTION_TIME_IN_DAYS = 20"
     )
     assertEquals(testSch2.update(testSch).sqls, expected)
+
+  test("access-role constructors return flattened objects and sorted sets"):
+    val role = AccRole("DEV_DB.SCH_RW", SortedMap("role" -> List("DEV_DB.SCH_R"), "table" -> List("select")))
+      .getOrElse(fail("access-role construction failed"))
+    assertEquals(role.name, RoleName.db("DEV_DB", "SCH", "SCH_RW"))
+    assertEquals(role.roles, SortedSet(RoleName.db("DEV_DB", "SCH", "SCH_R")))
+    assertEquals(role.privs, SortedMap(Ident("table") -> SortedSet(UString("select"))))
+    assertEquals(testSch.accRoles.toList.map(_.name.name), List("DEV_DB.SCH_R", "DEV_DB.SCH_RW"))
+    assert(AccRole("INVALID.ROLE.NAME", SortedMap.empty[String, List[String]]).isLeft)
+    assert(AccRole("VALID", SortedMap("role" -> List("INVALID.ROLE.NAME"))).isLeft)
+
+  test("access-role diffs preserve inherited role and privilege changes"):
+    given CDA[AccRole] = AccRole.cda(SchWh.Schema(Ident("DEV_DB"), Ident("SCH")))
+    val previous = AccRole(
+      "DEV_DB.SCH_RW",
+      SortedMap("role" -> List("DEV_DB.SCH_OLD"), "table" -> List("select", "insert"))
+    ).getOrElse(fail("access-role construction failed"))
+    val current = AccRole(
+      "DEV_DB.SCH_RW",
+      SortedMap("role" -> List("DEV_DB.SCH_NEW"), "table" -> List("select", "update"))
+    ).getOrElse(fail("access-role construction failed"))
+    assertEquals(
+      summon[CDA[SortedSet[AccRole]]].update(SortedSet(current))(SortedSet(previous)).sqls,
+      List(
+        "REVOKE INSERT ON FUTURE TABLES IN SCHEMA DEV_DB.SCH FROM DATABASE ROLE DEV_DB.SCH_RW",
+        "REVOKE INSERT ON ALL TABLES IN SCHEMA DEV_DB.SCH FROM DATABASE ROLE DEV_DB.SCH_RW",
+        "REVOKE DATABASE ROLE DEV_DB.SCH_OLD FROM DATABASE ROLE DEV_DB.SCH_RW",
+        "GRANT DATABASE ROLE DEV_DB.SCH_NEW TO DATABASE ROLE DEV_DB.SCH_RW",
+        "GRANT UPDATE ON FUTURE TABLES IN SCHEMA DEV_DB.SCH TO DATABASE ROLE DEV_DB.SCH_RW",
+        "GRANT UPDATE ON ALL TABLES IN SCHEMA DEV_DB.SCH TO DATABASE ROLE DEV_DB.SCH_RW"
+      )
+    )
+    assertEquals(summon[CDA[SortedSet[AccRole]]].update(SortedSet(current))(SortedSet(current)).sqls, Nil)

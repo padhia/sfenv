@@ -15,8 +15,11 @@ enum Sql:
 case class SqlStmt(use: Admin, text: Sql, forAll: Boolean = false, isForeign: Boolean = false):
   def resolve(sysAdmin: Ident, secAdmin: Ident): (Ident, String) =
     val useId = use match
-      case Admin.Sys => sysAdmin
-      case Admin.Sec => secAdmin
+      case Admin.Sys    => sysAdmin
+      case Admin.Sec    => secAdmin
+      case Admin.AccAdm => Ident("ACCOUNTADMIN")
+      case Admin.SecAdm => Ident("SECURITYADMIN")
+      case Admin.UsrAdm => Ident("USERADMIN")
 
     val textId = text match
       case Sql.Txt(x) => x

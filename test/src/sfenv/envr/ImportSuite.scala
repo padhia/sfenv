@@ -4,10 +4,7 @@ package envr
 import munit.FunSuite
 
 class ImportSuite extends FunSuite:
-  val imp = Import(
-    Ident("CUST_DEV"),
-    Import.Value(Ident("CUSTP"), Ident("DATA_SHR"), List(Ident("DBA"), Ident("DEVELOPER")))
-  )
+  val imp = Import(Ident("CUST_DEV"), Ident("CUSTP"), Ident("DATA_SHR"), List(Ident("DBA"), Ident("DEVELOPER")))
 
   test("create"):
     val expected = List(
@@ -26,7 +23,8 @@ class ImportSuite extends FunSuite:
     assertEquals(imp.drop.sqls, expected)
 
   test("update - role added and removed"):
-    val imp2     = Import(Ident("CUST_DEV"), Import.Value(Ident("CUSTP"), Ident("DATA_SHR"), List(Ident("DBA"), Ident("ETL"))))
+    val imp2 = Import(Ident("CUST_DEV"), Ident("CUSTP"), Ident("DATA_SHR"), List(Ident("DBA"), Ident("ETL")))
+
     val expected = List(
       "REVOKE IMPORTED PRIVILEGES ON DATABASE CUST_DEV FROM ROLE DEVELOPER",
       "GRANT IMPORTED PRIVILEGES ON DATABASE CUST_DEV TO ROLE ETL"

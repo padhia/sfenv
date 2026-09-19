@@ -97,14 +97,12 @@ object YamlParser:
           else Str(text)
         else if style != FYNS_PLAIN then Str(text)
         else if libfyaml.fy_node_is_null(fyn) || isNullLiteral(text) then Null
-        else if text.equalsIgnoreCase("true") || text.equalsIgnoreCase("yes") || text.equalsIgnoreCase("on") then
-          Bool(true)
-        else if text.equalsIgnoreCase("false") || text.equalsIgnoreCase("no") || text.equalsIgnoreCase("off") then
-          Bool(false)
+        else if text.equalsIgnoreCase("true") || text.equalsIgnoreCase("yes") || text.equalsIgnoreCase("on") then Bool(true)
+        else if text.equalsIgnoreCase("false") || text.equalsIgnoreCase("no") || text.equalsIgnoreCase("off") then Bool(false)
         else
           text.toLongOption match
             case Some(l) => NumInt(l)
-            case None =>
+            case None    =>
               text.toDoubleOption match
                 case Some(d) => NumDec(d)
                 case None    => Str(text)

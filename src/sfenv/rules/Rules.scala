@@ -7,62 +7,67 @@ import cats.syntax.all.*
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path}
 
-import scala.collection.immutable.{SortedMap, SortedSet}
+import scala.collection.immutable.SortedSet
 import scala.util.Try
 
 import fabric.Json
 import fabric.rw.*
 import envr.SfEnv
 import sfenv.envr.UserGrants
+import Rules.given
 
 case class Rules(
     config: Option[Config],
     options: Option[Options],
-    imports: Option[SortedMap[String, Import]],
-    databases: Option[SortedMap[String, Database]],
-    warehouses: Option[SortedMap[String, Warehouse]],
-    roles: Option[SortedMap[String, Role]],
-    apps: Option[SortedMap[String, User]],
-    users: Option[SortedMap[String, User]],
-    compute_pools: Option[SortedMap[String, ComputePool]]
+    account: Account = Account(),
+    imports: SortedSet[Import] = SortedSet.empty,
+    databases: SortedSet[Database] = SortedSet.empty,
+    warehouses: SortedSet[Warehouse] = SortedSet.empty,
+    roles: SortedSet[Role] = SortedSet.empty,
+    apps: SortedSet[User] = SortedSet.empty,
+    users: SortedSet[User] = SortedSet.empty,
+    compute_pools: SortedSet[ComputePool] = SortedSet.empty
 ) derives RW:
 
   def resolve(envName: String): SfEnv =
     given nr: NameResolver = config.getOrElse(Config()).resolver(envName)
 
     val userGrants: UserGrants =
-      def ug(xs: Option[SortedMap[String, User]], fu: String => Ident) =
+      def grants(members: SortedSet[User], userId: String => Ident) =
         for
-          (u, o) <- xs.map(_.toList).getOrElse(List.empty)
-          r      <- o.roles.getOrElse(SortedSet.empty[String])
-        yield (fu(u), nr.fn(r))
+          user <- members.toList
+          role <- user.roles
+        yield (userId(user.name), nr.fn(role))
 
-      val rg =
+      val roleGrants =
         for
-          (r, o) <- roles.getOrElse(SortedMap.empty[String, Role]).toList
-          us = o.users.getOrElse(SortedSet.empty[String]).map(Ident.apply)
-          as = o.apps.getOrElse(SortedSet.empty[String]).map(nr.app)
-          u <- us ++ as
-        yield (u, nr.fn(r))
+          role <- roles.toList
+          user <- role.users.map(Ident.apply).toList ++ role.apps.map(nr.app).toList
+        yield (user, nr.fn(role.name))
 
-      SortedSet.from(ug(users, Ident.apply) ++ ug(apps, nr.app) ++ rg)
-
-    def objMap[T: ObjMap](xm: Option[SortedMap[String, T]]) =
-      xm.getOrElse(SortedMap.empty[String, T]).map((n, o) => o.keyVal(n))
+      SortedSet.from(grants(users, Ident.apply) ++ grants(apps, nr.app) ++ roleGrants)
 
     SfEnv(
       secAdm = nr.secAdmin,
       sysAdm = nr.dbAdmin,
-      imports = objMap(imports),
-      databases = objMap(databases),
-      warehouses = objMap(warehouses),
-      computePools = objMap(compute_pools),
-      roles = objMap(roles),
-      users = objMap(apps)(using User.objMap(nr.app)) ++ objMap(users)(using User.objMap(Ident.apply)),
+      account = envr.Account(account.params),
+      imports = imports.map(_.asEnvr),
+      databases = databases.map(_.asEnvr),
+      warehouses = warehouses.map(_.asEnvr),
+      computePools = compute_pools.map(_.asEnvr),
+      roles = roles.map(_.asEnvr),
+      users = users.map(_.asEnvr(User.UserType.Person)) ++ apps.map(_.asEnvr(User.UserType.Service)),
       userGrants = userGrants,
     )
 
 object Rules:
+  given importsRW: RW[SortedSet[Import]] = keyedSortedSetRW[Import](_.name)
+  given databasesRW: RW[SortedSet[Database]] = keyedSortedSetRW[Database](_.name)
+  given warehousesRW: RW[SortedSet[Warehouse]] = keyedSortedSetRW[Warehouse](_.name)
+  given rolesRW: RW[SortedSet[Role]] = keyedSortedSetRW[Role](_.name)
+  given usersRW: RW[SortedSet[User]] = keyedSortedSetRW[User](_.name)
+  given computePoolsRW: RW[SortedSet[ComputePool]] = keyedSortedSetRW[ComputePool](_.name)
+
   private def parse(x: Json, path: Option[Path] = None): IO[Rules] =
     IO.fromEither(Try(x.as[Rules]).toEither.leftMap(e => AppError.RulesParsingError(e.getMessage(), path)))
 

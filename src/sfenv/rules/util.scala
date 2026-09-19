@@ -1,58 +1,52 @@
 package sfenv
 package rules
 
-import scala.collection.immutable.SortedMap
-import scala.compiletime.{constValue, constValueTuple, erasedValue, summonInline}
+import java.util.Locale
+
+import scala.collection.immutable.SortedSet
+import scala.compiletime.constValueTuple
 import scala.deriving.Mirror
 
 import fabric.*
 import fabric.define.{Definition, DefType}
-import fabric.rw.{Asable, RW, RWException}
+import fabric.rw.*
 
-private def asProp(key: String, x: Json): (Ident, PropVal) = Ident(key) -> (x match
-  case Bool(v, _)   => PropVal(v)
-  case Str(v, _)    => PropVal(v)
-  case NumInt(v, _) => PropVal(BigDecimal(v))
-  case NumDec(v, _) => PropVal(v)
-  case _            => throw RWException(s"$key is a pass-through element; quotes are required for the value"))
+def keyedSortedSetRW[A: {RW, Ordering}](nameOf: A => String): RW[SortedSet[A]] =
+  RW.from(
+    r = values =>
+      val entries = values.toList.map(value => nameOf(value) -> Obj(value.json.asObj.value - "name"))
+      if entries.map(_._1).distinct.size != entries.size then throw RWException("Duplicate object names")
+      Obj(entries.toMap)
+    ,
+    w = json =>
+      json.asObj.value.toList.sortBy(_._1).foldLeft(SortedSet.empty[A]): (values, entry) =>
+        val (name, body) = entry
+        val fields = if body.isNull then obj().asObj.value else body.asObj.value
+        if fields.keysIterator.exists(_.equalsIgnoreCase("name")) then
+          throw RWException(s"Object '$name' must not specify name; use the object key")
+        val value = Obj(fields + ("name" -> str(name))).as[A]
+        if values.contains(value) then throw RWException(s"Duplicate object name under ordering: '$name'")
+        values + value
+    ,
+    d = Definition(DefType.Obj("[key]" -> Definition(DefType.Json)))
+  )
 
-extension (json: Json) inline def attr(lookup: String) = json.getOrElse(lookup, Null)
-
-// Recursively walk Labels and Types in lockstep, building a Tuple of decoded values.
-// The "props" field collects all JSON keys not matched by any other field label.
-private inline def readElems[Labels <: Tuple, Types <: Tuple](
-    json: Json,
-    allLabels: List[String]
-): Tuple =
-  inline erasedValue[(Labels, Types)] match
-    case _: (EmptyTuple, EmptyTuple) =>
-      EmptyTuple
-    case _: ((label *: restLabels), (tpe *: restTypes)) =>
-      (inline erasedValue[label] match
-        case _: "props" =>
-          (if json.isNull then Props.empty
-           else
-             SortedMap.from(
-               json.asObj.value.iterator
-                 .filterNot { case (k, _) => allLabels.filterNot(_ == "props").contains(k) }
-                 .map(asProp)
-             )
-          ).asInstanceOf[tpe]
-        case _: String =>
-          json.attr(constValue[label & String]).as[tpe](using summonInline[RW[tpe]])
-      ) *: readElems[restLabels, restTypes](json, allLabels)
-
-// Produce a Json => A function for a Product type A.
-// Named fields are read via their RW instances; the "props" field absorbs leftover keys.
-inline def fromJson[A](using m: Mirror.ProductOf[A]): Json => A =
-  json =>
-    val allLabels = constValueTuple[m.MirroredElemLabels].toList.asInstanceOf[List[String]]
-    m.fromProduct(readElems[m.MirroredElemLabels, m.MirroredElemTypes](json, allLabels))
-
-// Derive a write-only RW[A] for any Product with a props: Props field.
-inline def propsRW[A](using Mirror.ProductOf[A]): RW[A] =
+inline def propsRW[A](using mirror: Mirror.ProductOf[A]): RW[A] =
+  val writer = RW.genW[A]
+  val labels = constValueTuple[mirror.MirroredElemLabels].toList.asInstanceOf[List[String]].filterNot(_ == "props").toSet
   RW.from(
     r = _ => throw UnsupportedOperationException("Serialization not supported"),
-    w = fromJson[A],
+    w = json =>
+      val fields     = if json.isNull then obj().asObj.value else json.asObj.value
+      val collisions = fields.keysIterator.toList
+        .groupBy(_.toLowerCase(Locale.ROOT))
+        .toList
+        .sortBy(_._1)
+        .collect { case (_, keys) if keys.size > 1 => keys.sorted.mkString("[", ", ", "]") }
+      if collisions.nonEmpty then throw RWException(s"Duplicate object keys ignoring case: ${collisions.mkString(", ")}")
+      val normalized     = fields.map((key, value) => key.toLowerCase(Locale.ROOT) -> value)
+      val (named, extra) = normalized.partition((key, _) => labels.contains(key))
+      writer.write(Obj(named + ("props" -> Obj(extra))))
+    ,
     d = Definition(DefType.Json)
   )

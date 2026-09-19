@@ -5,18 +5,22 @@ import cats.Show
 import cats.data.Chain
 import cats.syntax.all.*
 
-import scala.collection.immutable.SortedMap
+import scala.collection.immutable.{SortedMap, SortedSet}
 
 import SqlStmt.*
 
-case class Schema(name: SchName, value: Schema.Value):
-  export value.*
-
-  def accRoles = accRoleMap.toList.map(AccRole(_, _))
+case class Schema(
+    name: SchName,
+    transient: Boolean,
+    managed: Boolean,
+    meta: ObjMeta,
+    accRoles: SortedSet[AccRole]
+)
 
 object Schema:
   import CDA.given
-  case class Value(transient: Boolean, managed: Boolean, meta: ObjMeta, accRoleMap: SortedMap[RoleName, AccRole.Value])
+
+  given Ordering[Schema] = Ordering.by(_.name)
 
   def apply(
       db: String,
@@ -26,7 +30,7 @@ object Schema:
       meta: ObjMeta = ObjMeta.empty,
       accRoles: SortedMap[String, SortedMap[String, List[String]]] = SortedMap.empty
   ): Either[String, Schema] =
-    AccRole(accRoles, show"$db.$name").map(ar => Schema((Ident(db), Ident(name)), Value(transient, managed, meta, ar)))
+    AccRole(accRoles, show"$db.$name").map(ar => Schema((Ident(db), Ident(name)), transient, managed, meta, ar))
 
   val kind = "SCHEMA"
 
@@ -51,7 +55,7 @@ object Schema:
 
       override def drop: Chain[SqlStmt] =
         given CDA[AccRole] = arTc
-        summon[CDA[List[AccRole]]].drop(sch.accRoles)
+        summon[CDA[SortedSet[AccRole]]].drop(sch.accRoles)
           ++ (if sch.isReserved then Chain.empty else Chain(show"${kind.dr} ${sch.name}".ddl))
 
       override def update(old: Schema): Chain[SqlStmt] =

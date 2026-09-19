@@ -4,45 +4,43 @@ package envr
 import cats.data.Chain
 import cats.syntax.all.*
 
-import scala.collection.immutable.Map
+import scala.collection.immutable.SortedSet
 
 import CDA.given
 import UserGrants.*
 
-extension [K, V](xm: Map[K, V])
-  private def make[T](f: (K, V) => T): List[T]              = xm.toList.map(f(_, _))
-  private def create[T: CDA](f: (K, V) => T)                = xm.make(f).create
-  private def update[T: CDA](f: (K, V) => T, ym: Map[K, V]) = xm.make(f).update(ym.make(f))
-
 case class SfEnv(
     secAdm: Ident,
     sysAdm: Ident,
-    imports: Map[Ident, Import.Value],
-    databases: Map[Ident, Database.Value],
-    warehouses: Map[Ident, Warehouse.Value],
-    computePools: Map[Ident, ComputePool.Value],
-    roles: Map[Ident, Role.Value],
-    users: Map[Ident, User.Value],
+    account: Account,
+    imports: SortedSet[Import],
+    databases: SortedSet[Database],
+    warehouses: SortedSet[Warehouse],
+    computePools: SortedSet[ComputePool],
+    roles: SortedSet[Role],
+    users: SortedSet[User],
     userGrants: UserGrants,
 ):
 
   private def create =
-    imports.create(Import.apply)
-      ++ computePools.create(ComputePool.apply)
-      ++ warehouses.create(Warehouse.apply)
-      ++ databases.create(Database.apply)
-      ++ roles.create(Role.apply)
-      ++ users.create(User.apply)
+    account.create
+      ++ imports.create
+      ++ computePools.create
+      ++ warehouses.create
+      ++ databases.create
+      ++ roles.create
+      ++ users.create
       ++ userGrants.grant
 
   private def alter(old: SfEnv) =
-    imports.update(Import.apply, old.imports)
-      ++ computePools.update(ComputePool.apply, old.computePools)
-      ++ warehouses.update(Warehouse.apply, old.warehouses)
-      ++ databases.update(Database.apply, old.databases)
+    account.update(old.account)
+      ++ imports.update(old.imports)
+      ++ computePools.update(old.computePools)
+      ++ warehouses.update(old.warehouses)
+      ++ databases.update(old.databases)
       ++ (old.userGrants -- userGrants).revoke
-      ++ roles.update(Role.apply, old.roles)
-      ++ users.update(User.apply, old.users)
+      ++ roles.update(old.roles)
+      ++ users.update(old.users)
       ++ (userGrants -- old.userGrants).grant
 
   def genSqls[F[_]](prev: Option[SfEnv])(using genDrop: GenDrop, genGrant: GenGrant) =

@@ -6,14 +6,26 @@ All available _sections_ are documented below. Any section can be omitted when n
 
 - `config`
 - `options`
+- `account`
 - `imports`
 - `databases`
 - `warehouses`
+- `compute_pools`
 - `roles`
 - `users`
 - `apps`
 
 Although object properties listed below don't explicitly include them, but all object and role definitions accept `tags` _mapping object_ consisting of _tag-name_ and a _tag-value_
+
+## Attribute Names
+
+Always prefer lowercase attribute keys in YAML, JSON, and Pkl object definitions, including nested properties, for example `default_namespace`, `acc_roles`, and `warehouse_size`. Any field-names (**not values**) that are in different cases may be ignored or may generate incorrect output.
+
+## Nested Properties
+
+Pass-through properties support strings, numbers, booleans, nested objects, and arrays. Objects render as `(NAME = value, ...)` with sorted keys; arrays render as `(value, ...)` in input order. Both may be nested. Empty objects and arrays render as `()`. Null pass-through values are not supported. Existing string quoting rules apply recursively. Whether a particular nested value is accepted by Snowflake depends on the target property's syntax.
+
+An object containing `db` and `sch` is an ordinary nested property, not a schema reference. For user and application namespaces, use the named `default_namespace` string attribute instead.
 
 ## `config`
 
@@ -86,6 +98,30 @@ Notes:
     - `none`: do not generate `DROP` statements
 - command-line options have higher priority over options specified in rules file
 
+## `account`
+
+An optional object describing account-level settings. Currently, only account-level parameters are supported
+
+### `params`
+
+A mapping of account parameter names to values. Put parameters inside `params`, not directly under `account`. Both an omitted `account` section and an omitted `params` field default to an empty mapping.
+
+**Example:**
+
+```yaml
+account:
+  params:
+    statement_timeout_in_seconds: 3600
+    timezone: America/New_York
+```
+
+- Parameter names are emitted as uppercase SQL identifiers and are not expanded using environment naming templates.
+- String parameter values are automatically single-quoted; supply plain strings without adding SQL quotes. Numbers and booleans use their normal property rendering.
+- Without `--diff`, each parameter generates an `ALTER ACCOUNT SET` statement.
+- With `--diff`, new or changed parameters generate `ALTER ACCOUNT SET`; parameters present in the previous rules file but absent from the current one generate `ALTER ACCOUNT UNSET`. Unchanged parameters generate no statements. Omitting the entire section therefore removes all previously declared parameters when diffing.
+- These statements use the `ACCOUNTADMIN` role. Only specify parameters and values supported by Snowflake at account scope; the rules parser does not validate parameter names against Snowflake.
+- `params` uses the same property value types as other properties, including nested objects and arrays, but null values are not supported. Structured values are only useful where the target parameter accepts the generated syntax.
+
 ## `imports`
 
 A YAML/JSON object containing imported share names and their definitions.
@@ -116,32 +152,32 @@ A YAML/JSON object containing database names and their definitions.
 
 ```yaml
 databases:
-  EDW:
+  edw:
     data_retention_time_in_days: 10
     comment: EDW core database
     schemas:
-      CUSTOMER: &sch_defaults
+      customer: &sch_defaults
         managed: true
         data_retention_time_in_days: 10
         acc_roles:
-          R:
+          r:
             database: [usage, monitor]
             schema: [usage, monitor]
             table: [select, references]
             view: [select]
-          RW:
+          rw:
             role: [R]
             table: [insert, update, truncate, delete]
-          RWC:
+          rwc:
             role: [RW]
             schema: ["create table", "create view", "create procedure"]
 
-  BI:
+  bi:
     transient: true
     data_retention_time_in_days: 10
     comment: Analytics database
     schemas:
-      CUSTOMER:
+      customer:
       	<<: *sch_defaults
         transient: true
 ```
@@ -199,6 +235,25 @@ A warehouse is a YAML/JSON object with following attributes:
 - `acc_roles`: A YAML/JSON object containing access role definitions to create
 - `...`: Other attributes are reproduced as defined in the generated DDL
 
+## `compute_pools`
+
+Compute-pool definitions use lowercase snake_case attributes:
+
+- `min_nodes`: minimum nodes, default `1`.
+- `max_nodes`: maximum nodes, defaults to the selected `min_nodes`.
+- `instance_family`: instance family, default `CPU_X64_XS`.
+- `tags` and `comment`: metadata for the compute pool.
+
+The former camelCase spellings `minNodes`, `maxNodes`, and `instanceFamily` are no longer recognized as these attributes. Update existing rules files to use snake_case.
+
+```yaml
+compute_pools:
+  ETL:
+    min_nodes: 1
+    max_nodes: 3
+    instance_family: CPU_X64_XS
+```
+
 ## access roles
 
 An access role is created for each schema or a warehouse. An access role is specified as a YAML/JSON object with access role name as key and attribute being another YAML/JSON object that encodes a list of permissions for each database object type.
@@ -233,6 +288,7 @@ A functional role has following attributes:
 - `comment`: comment that'll be part of the generated DDL
 - `acc_roles`: A YAML/JSON list containing _references_ to schema and/or warehouse access roles
 - `env_acc_roles`: Allows overriding access roles for specific environments
+- `sys_roles`: An optional list of existing account roles or database roles to grant to this functional role. Unlike access roles, these roles are used verbatim without any template expansion
 
 **Example**
 
@@ -244,6 +300,9 @@ roles:
     apps:
       - ETL
     comment: Developers
+    sys_roles:
+      - SHARED_READER
+      - SHARED_DB.READER
     acc_roles:
       EDW.CUSTOMER: R
       BI.CUSTOMER: R
@@ -282,6 +341,7 @@ A _user_ is an object mapping of name and its properties. Valid properties
 - `comment`: comment that'll be part of the generated DDL
 - `roles`: A YAML/JSON list containing names of the functional roles to be assigned to this user ID
 - references specified in the `default*` keys are expanded per regular patterns specified in `config` section
+- `default_namespace`: a string in the form `database` or `database.schema`. Names are resolved using the configured templates. It is managed separately from pass-through properties: changes generate `SET DEFAULT_NAMESPACE`, removal generates `UNSET DEFAULT_NAMESPACE`, and dropping a user requires no separate namespace cleanup.
 
 ## `apps`
 

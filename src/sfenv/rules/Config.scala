@@ -4,31 +4,31 @@ package rules
 import fabric.rw.*
 
 case class Config(
-    secadm: Option[String] = None,
-    dbadm: Option[String] = None,
-    database: Option[String] = None,
-    schema: Option[String] = None,
-    warehouse: Option[String] = None,
-    acc_role: Option[String] = None,
-    wacc_role: Option[String] = None,
-    fn_role: Option[String] = None,
-    app_id: Option[String] = None,
-    cpool: Option[String] = None
+    secadm: String = "USERADMIN",
+    dbadm: String = "SYSADMIN",
+    database: String = "{db}",
+    schema: String = "{sch}",
+    warehouse: String = "{wh}",
+    acc_role: String = "{sch}_{acc}",
+    wacc_role: String = "_{wh}_{acc}",
+    fn_role: String = "{role}",
+    app_id: String = "{app}",
+    cpool: String = "{cp}",
 ) derives RW:
 
   def resolver(envName: String): NameResolver =
     Config.Resolver(
       env = envName,
-      secadm = secadm.getOrElse("USERADMIN"),
-      dbadm = dbadm.getOrElse("SYSADMIN"),
-      database = database.getOrElse("{db}"),
-      schema = schema.getOrElse("{sch}"),
-      warehouse = warehouse.getOrElse("{wh}"),
-      acc_role = acc_role.getOrElse("{sch}_{acc}"),
-      wacc_role = wacc_role.getOrElse("_{wh}_{acc}"),
-      fn_role = fn_role.getOrElse("{role}"),
-      app_id = app_id.getOrElse("{app}"),
-      cpool = cpool.getOrElse("{cp}")
+      secadm = secadm,
+      dbadm = dbadm,
+      database = database,
+      schema = schema,
+      warehouse = warehouse,
+      acc_role = acc_role,
+      wacc_role = wacc_role,
+      fn_role = fn_role,
+      app_id = app_id,
+      cpool = cpool,
     )
 
 object Config:

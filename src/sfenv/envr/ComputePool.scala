@@ -9,9 +9,9 @@ import SqlStmt.*
 case class ComputePool(name: Ident, meta: ObjMeta)
 
 object ComputePool:
-  type Value = ObjMeta
-
   val kind = "COMPUTE POOL"
+
+  given Ordering[ComputePool] = Ordering.by(_.name)
 
   given CDA[ComputePool]:
     extension (obj: ComputePool)

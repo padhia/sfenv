@@ -6,13 +6,12 @@ import cats.syntax.all.*
 
 import SqlStmt.*
 
-case class Import(name: Ident, value: Import.Value):
-  export value.*
+case class Import(name: Ident, provider: Ident, share: Ident, roles: List[Ident])
 
 object Import:
   val kind = "DATABASE"
 
-  case class Value(provider: Ident, share: Ident, roles: List[Ident])
+  given Ordering[Import] = Ordering.by(_.name)
 
   given CDA[Import]:
     extension (obj: Import)

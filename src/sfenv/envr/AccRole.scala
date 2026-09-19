@@ -6,25 +6,24 @@ import cats.syntax.all.*
 
 import collection.immutable.{SortedMap, SortedSet}
 
-case class AccRole(name: RoleName, value: AccRole.Value):
-  export value.*
+case class AccRole(name: RoleName, roles: SortedSet[RoleName], privs: SortedMap[Ident, SortedSet[UString]])
 
 object AccRole:
-  case class Value(roles: SortedSet[RoleName], privs: SortedMap[Ident, SortedSet[UString]])
+  given Ordering[AccRole] = Ordering.by(_.name)
 
-  def apply(name: String, privs: SortedMap[String, List[String]]): Either[String, (RoleName, AccRole.Value)] =
+  def apply(name: String, privs: SortedMap[String, List[String]]): Either[String, AccRole] =
     for
-      n  <- RoleName(name)
-      rs <- privs.get("role").getOrElse(List.empty).traverse(RoleName.apply).map(SortedSet.from)
-      ps = privs.filter(_._1 != "role").map((k, v) => (Ident(k), SortedSet.from(v.map(UString.apply))))
-    yield (n, Value(rs, ps))
+      roleName <- RoleName(name)
+      roles <- privs.get("role").getOrElse(List.empty).traverse(RoleName.apply).map(SortedSet.from)
+      privileges = privs.filter(_._1 != "role").map((kind, values) => (Ident(kind), SortedSet.from(values.map(UString.apply))))
+    yield AccRole(roleName, roles, privileges)
 
   def apply(
       accRoles: SortedMap[String, SortedMap[String, List[String]]],
       pfx: String
-  ): Either[String, SortedMap[RoleName, AccRole.Value]] =
+  ): Either[String, SortedSet[AccRole]] =
     def attachDbSch(k: String, v: List[String]) = (k, if k == "role" then v.map(x => show"${pfx}_$x") else v)
-    accRoles.toList.traverse((k, v) => apply(show"${pfx}_$k", v.map(attachDbSch))).map(SortedMap.from(_))
+    accRoles.toList.traverse((k, v) => apply(show"${pfx}_$k", v.map(attachDbSch))).map(SortedSet.from(_))
 
   def cda(grantOn: SchWh) =
     new CDA[AccRole]:

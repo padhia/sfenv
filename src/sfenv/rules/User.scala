@@ -3,44 +3,58 @@ package rules
 
 import scala.collection.immutable.{SortedMap, SortedSet}
 
+import fabric.*
 import fabric.rw.*
 import envr.{ObjMeta, UserGrants, UserRole}
+import User.UserType
 
 case class User(
-    roles: Option[SortedSet[String]],
-    default_warehouse: Option[String],
-    default_namespace: Option[Namespace],
-    default_role: Option[String],
-    tags: Option[Tags],
-    comment: Option[SqlLiteral],
-    create: Option[Boolean],
+    name: String,
+    roles: SortedSet[String] = SortedSet.empty,
+    default_warehouse: Option[String] = None,
+    default_namespace: Option[Namespace] = None,
+    default_role: Option[String] = None,
+    tags: Tags = SortedMap.empty,
+    comment: Option[SqlLiteral] = None,
+    `type`: Option[String] = None,
+    create: Boolean = true,
     props: Props,
 ):
   def userRoles(name: String)(using n: NameResolver): UserGrants =
     def toUserRole(r: String): UserRole = (Ident(name), n.fn(r))
-    roles.map(_.map(toUserRole)).getOrElse(SortedSet.empty)
+    roles.map(toUserRole)
+
+  def asEnvr(ut: UserType)(using n: NameResolver): envr.User =
+    val defaults = Props.fromJson(
+      Obj(
+        Map(
+          "TYPE"              -> `type`.orElse(Some(ut.typeName)).map(_.json),
+          "DEFAULT_WAREHOUSE" -> default_warehouse.map(value => n.wh(value).json),
+          "DEFAULT_ROLE"      -> default_role.map(value => n.fn(value).json),
+        ).collect { case (key, Some(value)) => key -> value }
+      )
+    )
+
+    envr.User(
+      ut.userID(name),
+      meta = ObjMeta(defaults ++ props, tags, comment),
+      createObj = create,
+      defaultNamespace = default_namespace.map(_.resolve)
+    )
 
 object User:
+  given Ordering[User] = Ordering.by(_.name)
+
   given RW[User] = propsRW
 
-  def objMap(f: String => Ident) =
-    new ObjMap[User]:
-      type Key   = Ident
-      type Value = envr.User.Value
+  enum UserType:
+    case Person, Service
 
-      extension (r: User)
-        def keyVal(k: String)(using n: NameResolver) =
-          val defaults =
-            SortedMap(
-              "DEFAULT_WAREHOUSE" -> r.default_warehouse.map(x => PropVal(n.wh(x))),
-              "DEFAULT_NAMESPACE" -> r.default_namespace.map(_.resolve),
-              "DEFAULT_ROLE"      -> r.default_role.map(x => PropVal(n.fn(x)))
-            ).collect { case (p, Some(v)) => Ident(p) -> v }
+    def userID(name: String)(using n: NameResolver): Ident =
+      this match
+        case Person  => Ident(name)
+        case Service => n.app(name)
 
-          (
-            f(k),
-            envr.User.Value(
-              meta = ObjMeta(defaults ++ r.props, r.tags, r.comment),
-              createObj = r.create.getOrElse(true)
-            )
-          )
+    def typeName: String = this match
+      case Person  => "PERSON"
+      case Service => "SERVICE"

@@ -1,17 +1,15 @@
 package sfenv
 package envr
 
-import scala.collection.immutable.SortedMap
+import scala.collection.immutable.SortedSet
 
 import munit.FunSuite
 
 class WarehouseSuite extends FunSuite:
   val wh = Warehouse(
     Ident("WH_DEV_LOAD"),
-    Warehouse.Value(
-      meta = ObjMeta(Props("warehouse_size" -> "SMALL", "auto_suspend" -> 300)),
-      accRoleMap = SortedMap.empty
-    )
+    meta = ObjMeta(Props("warehouse_size" -> "SMALL", "auto_suspend" -> 300)),
+    accRoles = SortedSet.empty
   )
 
   test("create"):
@@ -28,10 +26,8 @@ class WarehouseSuite extends FunSuite:
   test("alter - prop changed and removed"):
     val wh2 = Warehouse(
       Ident("WH_DEV_LOAD"),
-      Warehouse.Value(
-        meta = ObjMeta(Props("warehouse_size" -> "MEDIUM")),
-        accRoleMap = SortedMap.empty
-      )
+      meta = ObjMeta(Props("warehouse_size" -> "MEDIUM")),
+      accRoles = SortedSet.empty
     )
     val expected = List(
       "ALTER WAREHOUSE IF EXISTS WH_DEV_LOAD SET WAREHOUSE_SIZE = MEDIUM",

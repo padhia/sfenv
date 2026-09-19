@@ -16,8 +16,8 @@ object PklParser:
   def apply(path: Path): IO[Json] =
     for
       proc <- IO.blocking(
-                ProcessBuilder("pkl", "eval", "--format", "json", "--module-path", cwd, path.toString).start()
-              )
+        ProcessBuilder("pkl", "eval", "--format", "json", "--module-path", cwd, path.toString).start()
+      )
       stdout <- IO.blocking(String(proc.getInputStream.readAllBytes()))
       stderr <- IO.blocking(String(proc.getErrorStream.readAllBytes()))
       exit   <- IO.blocking(proc.waitFor())
