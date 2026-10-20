@@ -1,4 +1,4 @@
-import "modulepath:/defaults.pkl"
+import "defaults.pkl"
 
 config = defaults.config
 

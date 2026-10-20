@@ -3,6 +3,8 @@ name: create a new release
 on:
   push:
     tags:
+      # application releases only; KCL package releases use kcl/v* tags (see publish-kcl.yaml),
+      # which do not match this pattern
       - "v*"
 
 jobs:

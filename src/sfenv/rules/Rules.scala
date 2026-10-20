@@ -14,7 +14,6 @@ import fabric.Json
 import fabric.rw.*
 import envr.SfEnv
 import sfenv.envr.UserGrants
-import Rules.given
 
 case class Rules(
     config: Option[Config],
@@ -61,11 +60,11 @@ case class Rules(
     )
 
 object Rules:
-  given importsRW: RW[SortedSet[Import]] = keyedSortedSetRW[Import](_.name)
-  given databasesRW: RW[SortedSet[Database]] = keyedSortedSetRW[Database](_.name)
-  given warehousesRW: RW[SortedSet[Warehouse]] = keyedSortedSetRW[Warehouse](_.name)
-  given rolesRW: RW[SortedSet[Role]] = keyedSortedSetRW[Role](_.name)
-  given usersRW: RW[SortedSet[User]] = keyedSortedSetRW[User](_.name)
+  given importsRW: RW[SortedSet[Import]]           = keyedSortedSetRW[Import](_.name)
+  given databasesRW: RW[SortedSet[Database]]       = keyedSortedSetRW[Database](_.name)
+  given warehousesRW: RW[SortedSet[Warehouse]]     = keyedSortedSetRW[Warehouse](_.name)
+  given rolesRW: RW[SortedSet[Role]]               = keyedSortedSetRW[Role](_.name)
+  given usersRW: RW[SortedSet[User]]               = keyedSortedSetRW[User](_.name)
   given computePoolsRW: RW[SortedSet[ComputePool]] = keyedSortedSetRW[ComputePool](_.name)
 
   private def parse(x: Json, path: Option[Path] = None): IO[Rules] =
@@ -85,5 +84,6 @@ object Rules:
       _      <- IO.raiseUnless(exists)(AppError.FileNotFound(path))
       rules  <-
         if path.toString.endsWith(".pkl") then PklParser(path).flatMap(json => parse(json, Some(path)))
+        else if path.toString.endsWith(".k") then KclParser(path).flatMap(json => parse(json, Some(path)))
         else apply(Files.readString(path))
     yield rules

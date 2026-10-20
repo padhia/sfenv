@@ -120,6 +120,33 @@ class RulesSuite extends FunSuite:
     assertEquals(obj("max_nodes" -> num(5)).namedAs[ComputePool].max_nodes, Some(5))
     assertEquals(pool.props, Props.empty)
 
+  test("compute pool application is a named field, not a pass-through property"):
+    val pool = obj("application" -> str("MY_APP"), "auto_resume" -> bool(true)).namedAs[ComputePool]
+    assertEquals(pool.application, Some("MY_APP"))
+    assertEquals(pool.props, Props("auto_resume" -> true))
+    assertEquals(obj().namedAs[ComputePool].application, None)
+
+  test("compute pool create and alter with application"):
+    def resolve(yaml: String) = Rules(yaml).unsafeRunSync().resolve("DEV")
+    def sqls(cur: envr.SfEnv, old: Option[envr.SfEnv]) =
+      cur.genSqls[cats.effect.IO](old)(using GenDrop.All, GenGrant.All).toList
+
+    val v1 = resolve("compute_pools:\n  BATCH: {application: APP_A, max_nodes: 2}\n")
+    val v2 = resolve("compute_pools:\n  BATCH: {application: APP_A, max_nodes: 3}\n")
+    val v3 = resolve("compute_pools:\n  BATCH: {application: APP_B, max_nodes: 3}\n")
+
+    val created = sqls(v1, None)
+    assert(created.exists(_.contains("CREATE COMPUTE POOL IF NOT EXISTS BATCH FOR APPLICATION APP_A")), created)
+
+    val altered = sqls(v2, Some(v1))
+    assert(altered.exists(_.contains("ALTER COMPUTE POOL IF EXISTS BATCH SET MAX_NODES = 3")), altered)
+    assert(!altered.exists(_.contains("DROP COMPUTE POOL")), altered)
+
+    val replaced = sqls(v3, Some(v2))
+    val dropAt   = replaced.indexWhere(_.contains("DROP COMPUTE POOL IF EXISTS BATCH"))
+    val createAt = replaced.indexWhere(_.contains("CREATE COMPUTE POOL IF NOT EXISTS BATCH FOR APPLICATION APP_B"))
+    assert(dropAt >= 0 && createAt > dropAt, replaced)
+
   test("warehouse retains optional field and pass-through behavior"):
     val warehouse = obj("warehouse_size" -> str("SMALL")).namedAs[Warehouse]
     assertEquals(warehouse.acc_roles, None)

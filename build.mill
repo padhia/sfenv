@@ -10,11 +10,11 @@ import mill.scalanativelib.*
 import mill.scalanativelib.api.*
 
 object V:
-  val scala     = "3.8.4"
-  val fabric    = "1.30.0"
+  val scala     = "3.9.0"
+  val fabric    = "1.30.3"
   val snakeyaml = "3.1.1"
   val decline   = "2.6.2"
-  val munit     = "1.3.5"
+  val munit     = "1.3.6"
   val native    = "0.5.12"
 
 trait SfEnvNative extends ScalaNativeModule:
@@ -33,7 +33,7 @@ trait SfEnvNative extends ScalaNativeModule:
     super.nativeLinkingOptions() ++ flags
 
 trait SfEnvPub extends PublishModule:
-  override def publishVersion = "0.3.1-RC1"
+  override def publishVersion = "0.4.0-M1"
   override def pomSettings    = PomSettings(
     description = "Manage Snowflake environments declaratively",
     organization = "org.padhia",

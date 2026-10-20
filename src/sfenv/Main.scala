@@ -5,58 +5,73 @@ import cats.effect.std.Console
 import cats.syntax.all.*
 
 import com.monovore.decline.*
+import com.monovore.decline.effect.CommandIOApp
 
 import java.io.IOException
 import java.nio.file.Path
 
+import git.{Git, Rev}
 import rules.Rules
 
-object Main extends IOApp:
+/** A place to read rules from */
+enum RulesSource:
+  case Stdin
+  case NativePath(path: Path)
+  case GitPath(path: Path, rev: Rev)
 
-  def genEnvSqls(
+  /** Loads rules; `None` only when a git path does not exist at the given revision */
+  def load: IO[Option[Rules]] = this match
+    case Stdin              => Rules(None).map(_.some)
+    case NativePath(path)   => Rules(path).map(_.some)
+    case GitPath(path, rev) => Git().flatMap(g => g.relPath(path).flatMap(g.load(rev, _)))
+
+  /** Loads rules that must exist */
+  def loadRequired: IO[Rules] = this match
+    case GitPath(path, _) => load.flatMap(IO.fromOption(_)(AppError.FileNotFound(path)))
+    case _                => load.map(_.get)
+
+object Main
+    extends CommandIOApp(
+      name = "sfenv",
+      header = "Generate Snowflake DDL and DCL statements from Rule file",
+      version = "0.4.0-M1"
+    ):
+  def genAdminSqls(env: EnvName, rules: Rules): IO[Unit] =
+    IO.println(rules.resolve(env).adminRoleSqls)
+
+  private def handled(io: IO[Unit]): IO[ExitCode] =
+    def showError(s: String) = Console[IO].errorln(s).as(ExitCode.Error)
+    io.as(ExitCode.Success)
+      .handleErrorWith:
+        case e: IOException => showError(s"IO Error: ${e.getMessage()}")
+        case e: AppError    => showError(e.getMessage())
+
+  private def setQueryTag(tag: Option[String]): IO[Unit] =
+    tag.traverse_(t => IO.println(show"ALTER SESSION SET QUERY_TAG = ${SqlLiteral(t)};\n"))
+
+  /** Generates RBAC SQLs for the target rules, as differences from the base rules when given */
+  def rbacSqls(
       env: EnvName,
-      rulesFile: Option[Path],
-      diffFile: Option[Path],
+      target: RulesSource,
+      base: Option[RulesSource],
       genDropCli: Option[GenDrop],
       genGrantCli: Option[GenGrant],
+      queryTag: Option[String],
   ): IO[ExitCode] =
-    for
-      cRules <- Rules(rulesFile)
-      pRules <- diffFile.traverse(Rules.apply)
-      cEnv     = cRules.resolve(env)
-      pEnv     = pRules.map(_.resolve(env))
-      genDrop  = genDropCli.orElse(cRules.options.map(_.drop)).getOrElse(GenDrop.Local)
-      genGrant = genGrantCli.orElse(cRules.options.map(_.genGrant)).getOrElse(GenGrant.All)
-      sqls     = cEnv.genSqls(pEnv)(using genDrop, genGrant)
-      _ <- sqls.traverse_(x => IO.println(x))
-    yield ExitCode.Success
+    handled:
+      for
+        cRules <- target.loadRequired
+        pRules <- base.flatTraverse(_.load)
+        cEnv     = cRules.resolve(env)
+        pEnv     = pRules.map(_.resolve(env))
+        genDrop  = genDropCli.orElse(cRules.options.map(_.drop)).getOrElse(GenDrop.Local)
+        genGrant = genGrantCli.orElse(cRules.options.map(_.genGrant)).getOrElse(GenGrant.All)
+        sqls     = cEnv.genSqls(pEnv)(using genDrop, genGrant)
+        _ <- (setQueryTag(queryTag) >> sqls.traverse_(x => IO.println(x))).whenA(!sqls.isEmpty)
+      yield ()
 
-  def genAdminSqls(env: EnvName, rulesIO: IO[Rules]): IO[ExitCode] =
-    for
-      rules <- rulesIO
-      _     <- IO.println(rules.resolve(env).adminRoleSqls)
-    yield ExitCode.Success
-
-  private val version = "0.3.1-RC1"
-
-  private val helpText =
-    val dropChoices = GenDrop.values.map(_.toString().toLowerCase()).mkString("|")
-
-    s"""|Usage:
-        |  sfenv [--env <string>] --admin-roles [<rules>]
-        |  sfenv [--env <string>] [--diff <path>] [--gen-drop <choice>] [--only-future] [<rules-file>]
-        |
-        |Generate Snowflake DDL and DCL statements from Rule file
-        |
-        |Options:
-        |  --help               Print help message and exit
-        |  --version            Print application version ($version) and exit
-        |
-        |  -e, --env <string>   Set environment name (default $$SFENV or DEV)
-        |  --admin-roles        Generate SQLs to create environment admin roles
-        |  -d, --diff <rules>   Generate SQLs only for the differences when compared to this ruleset
-        |  --gen-drop <choice>  Which DROP statements to generate without commenting: $dropChoices
-        |  -F, --only-future    Generate grants for only FUTURE objects (skip GRANTS TO ALL)""".stripMargin
+  def adminSqls(env: EnvName, file: Option[Path], queryTag: Option[String]): IO[ExitCode] =
+    handled(Rules(file).flatMap(rules => setQueryTag(queryTag) >> genAdminSqls(env, rules)))
 
   def opts: Opts[IO[ExitCode]] =
     val env = Opts
@@ -65,45 +80,42 @@ object Main extends IOApp:
       .map(_.toUpperCase)
       .withDefault("DEV")
 
-    val currRules = Opts.argument[Path]("rules-file").orNone
-
-    val prevRules = Opts
-      .option[Path](
-        "diff",
-        short = "d",
-        help = "generate SQLs for only the differences when compared to this ruleset"
-      )
-      .orNone
-
-    val adminCmd =
-      val adminRoles = Opts.flag("admin-roles", help = "Generate SQLs to create environment admin roles")
-      (env, currRules, adminRoles).mapN((e, c, _) => genAdminSqls(e, Rules(c)))
-
     val genDrop = Opts.option[GenDrop]("gen-drop", help = "DROP statements to comment out").orNone
 
-    val getGrant = Opts
-      .flag("futures-only", short = "F", help = "Generate grants for only FUTURE objects (skip ALL)")
+    val onlyNew = Opts
+      .flag("only-new", short = "N", help = "Generate grants for only FUTURE objects (skip ALL)")
       .map(_ => GenGrant.Future)
       .orNone
 
-    val envCmd = (env, currRules, prevRules, genDrop, getGrant).mapN(genEnvSqls)
+    val queryTag = Opts
+      .option[String]("query-tag", short = "T", help = "Set QUERY_TAG value for the session")
+      .orElse(Opts.env[String]("SFENV_QUERY_TAG", help = "Set $QUERY_TAG unless --query-tag option is specified"))
+      .orNone
 
-    val helpCmd = Opts
-      .flag("help", help = "Print help message and exit")
-      .map(_ => IO.println(colorizeHelp(helpText)).as(ExitCode.Success))
+    val currRules = Opts.argument[Path]("rules-file").orNone
 
-    val versionCmd = Opts
-      .flag("version", help = "Print application version and exit")
-      .map(_ => IO.println(version).as(ExitCode.Success))
+    val baseRules = Opts.option[Path]("diff", short = "d", help = "Previous rules file to diff against (source)").orNone
 
-    def showError(s: String) = Console[IO].errorln(s).as(ExitCode.Error)
+    val envCmd =
+      val target = currRules.map(_.fold(RulesSource.Stdin)(RulesSource.NativePath(_)))
+      val base   = baseRules.map(_.map(RulesSource.NativePath(_)))
+      (env, target, base, genDrop, onlyNew, queryTag).mapN(rbacSqls)
 
-    (helpCmd orElse versionCmd orElse adminCmd orElse envCmd).map:
-      _.handleErrorWith:
-        case e: IOException => showError(s"IO Error: ${e.getMessage()}")
-        case e: AppError    => showError(e.getMessage())
+    val diffCmd = Opts.subcommand("diff", "Generate SQLs for differences between git states"):
+      val commit   = Opts.argument[String]("commit")
+      val fileName = Opts.argument[Path]("path")
 
-  def run(args: List[String]): IO[ExitCode] =
-    Command("sfenv", header = "", helpFlag = false)(opts).parse(args, sys.env) match
-      case Right(fa) => fa
-      case Left(_)   => Console[IO].errorln(colorizeHelp(helpText)).as(ExitCode.Error)
+      val case1 = (commit, commit, fileName).mapN((x, y, f) => (f, Rev.Commit(x), Rev.Commit(y)))
+      val case2 = (commit, fileName).mapN((x, f) => (f, Rev.Commit(x), Rev.WorkDir))
+      val case3 = fileName.map((_, Rev.Index, Rev.WorkDir))
+
+      (env, case1 orElse case2 orElse case3, genDrop, onlyNew, queryTag).mapN:
+        case (e, (f, from, to), d, g, q) =>
+          rbacSqls(e, RulesSource.GitPath(f, to), Some(RulesSource.GitPath(f, from)), d, g, q)
+
+    val adminCmd = Opts.subcommand("admin", "Generate SQLs to create environment admin roles", helpFlag = false):
+      (env, currRules, queryTag).mapN(adminSqls)
+
+    diffCmd orElse adminCmd orElse envCmd
+
+  override def main: Opts[IO[ExitCode]] = opts

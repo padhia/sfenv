@@ -86,12 +86,15 @@
         {
           devShells.default = pkgs.mkShell {
             name = "scala-native";
-            buildInputs = allInputs;
+            buildInputs = allInputs ++ [
+              pkgs.kcp
+              pkgs.pkl
+            ];
           };
 
           packages.default = pkgs.stdenv.mkDerivation {
             pname = "sfenv";
-            version = "0.3.0";
+            version = "0.4.0-M1";
             src = ./.;
 
             inherit nativeBuildInputs buildInputs;

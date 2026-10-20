@@ -76,4 +76,6 @@ case class SfEnv(
            |GRANT ROLE ${sysAdm} TO ROLE SYSADMIN;
            |
            |USE ROLE SYSADMIN;
-           |GRANT CREATE DATABASE ON ACCOUNT TO ${sysAdm};""".stripMargin
+           |GRANT CREATE DATABASE ON ACCOUNT TO ${sysAdm};
+           |GRANT CREATE WAREHOUSE ON ACCOUNT TO ${sysAdm};
+           |GRANT CREATE INTEGRATION ON ACCOUNT TO ${sysAdm};""".stripMargin

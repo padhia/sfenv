@@ -20,7 +20,7 @@ The project uses `flake.nix` to create the development environment
 ## High-level project architecture
 
 - The input source, YAML or Pkl files, are parsed and converted to internal form
-- If an another source, referred to as base, is given by `--diff` option, it too, is converted to an internal form
+- If an another source, referred to as base, is given by the `diff` command (a previous git state of the same file), it too, is converted to an internal form
     - the main internal form is then diff'ed with the base
     - generate the SQL statements depending if an existing object has been modified, is created new, or has been dropped
 - If there is no other source to diff against, generate SQL statements for the objects as being created new

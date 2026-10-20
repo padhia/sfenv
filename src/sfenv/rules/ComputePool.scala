@@ -11,6 +11,7 @@ case class ComputePool(
     min_nodes: Int = 1,
     max_nodes: Option[Int] = None,
     instance_family: String = "CPU_X64_XS",
+    application: Option[String] = None,
     tags: Tags = SortedMap.empty,
     comment: Option[SqlLiteral] = None,
     props: Props,
@@ -24,7 +25,7 @@ case class ComputePool(
     ObjMeta(properties, tags, comment)
 
   def asEnvr(using resolver: NameResolver): envr.ComputePool =
-    envr.ComputePool(resolver.cp(name), objMeta)
+    envr.ComputePool(resolver.cp(name), application, objMeta)
 
 object ComputePool:
   given Ordering[ComputePool] = Ordering.by(_.name)

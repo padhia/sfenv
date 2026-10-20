@@ -39,22 +39,23 @@ It is strongly recommended that the generated output be verified before submitti
 - Unified definitions for Databases, Schemas, Warehouses, Shares, Users, Application IDs, and RBAC policies
 - Adherence to Snowflake best practices via dual-layer Access and Functional Role abstractions
 - Environment-specific access controls declared concisely (e.g., `RWC` in DEV versus [`R`](https://pkl-lang.org) in PROD)
-- Incremental deployment support via the `--diff` option, emitting SQL strictly for net-new or modified declarations
+- Incremental deployment support via the `diff` command, emitting SQL strictly for net-new or modified declarations
 - Multi-format support for rule definitions, including YAML, JSON, and [Pkl](https://pkl-lang.org)
 
 ## Usage
 
 ```sh
-sfenv [-e <env>] [--admin-roles] [<rules-file>]
-sfenv [-e <env>] [-d <path>] [--drop <choice>] [-F] [<rules-file>]
+sfenv [-e <env>] [--gen-drop <choice>] [-F] [<rules-file>]
+sfenv diff [-e <env>] [--gen-drop <choice>] [-F] [<commit> [<commit>]] <rules-file>
+sfenv admin [-e <env>] [<rules-file>]
 ```
 
 Command Parameters:
 
 - `<rules-file>`: Specifies the input YAML, JSON, or Pkl configuration file containing object and privilege specifications. Reads from standard input if omitted.
 - `-e, --env ENV`: The targeted _environment_ identifier used to contextualize object and role naming conventions (default: `$SFENV` or `DEV`).
-- `--admin-roles`: Generates foundational SQL to initialize administrative roles (`secadm` and `dbadm`) for the environment. Should be executed prior to applying primary environment configurations.
-- `-d, --diff <rules>`: Enables differential mode, generating SQL statements strictly for modifications detected between the baseline rules file and the current rules specification.
+- `admin`: Command that generates foundational SQL to initialize administrative roles (`secadm` and `dbadm`) for the environment. Should be executed prior to applying primary environment configurations.
+- `diff`: Command that generates SQL only for differences between two git states of the rules file (see [Maintaining State](#maintaining-state)).
 - `--gen-drop <all|local|none>`: Controls execution behavior for destructive `DROP` SQL directives.
     - `all`: Emits all `DROP` statements active for direct execution.
     - `local`: Comments out potentially destructive `DROP` statements affecting local databases and schemas while leaving non-destructive statements active.
@@ -71,46 +72,42 @@ YAML and JSON formats are natively supported. Support for `.pkl` configurations 
 - **Object Inheritance** — Parameterize base configurations (e.g., `(defaults.sch) { transient = true }`) to inherit default settings while applying targeted property overrides.
 - **Expression Reuse** — Reference existing environment privilege definitions directly (e.g., `QA = DEV`) to reduce duplicate declarations.
 
-Reference implementations are provided in [`examples/defaults.pkl`](https://github.com/padhia/sfenv/tree/main/examples/defaults.pkl) and [`examples/example.pkl`](https://github.com/padhia/sfenv/tree/main/examples/example.pkl). Note that `example.pkl` references `defaults.pkl` via the `modulepath:` scheme (detailed under [Integrating with Git](#integrating-with-git)). Because `sfenv` resolves module paths relative to the working directory, commands must be executed directly from within the `examples/` directory (e.g., `cd examples && sfenv example.pkl`).
+Reference implementations are provided in [`examples/defaults.pkl`](https://github.com/padhia/sfenv/tree/main/examples/defaults.pkl) and [`examples/example.pkl`](https://github.com/padhia/sfenv/tree/main/examples/example.pkl). `example.pkl` imports `defaults.pkl` using a relative path, which Pkl resolves against the importing file's directory, so it can be evaluated from any directory (e.g., `sfenv examples/example.pkl`).
+
+### Recommended: KCL with typed schemas
+
+[KCL](https://www.kcl-lang.io) (`.k`) rules files are supported when the [KCL CLI](https://www.kcl-lang.io/docs/user_docs/getting-started/install) is on the system `PATH`. KCL offers the same modularity as Pkl, and with the typed schemas in the [`kcl`](https://github.com/padhia/sfenv/tree/main/kcl) package ([`core.k`](https://github.com/padhia/sfenv/tree/main/kcl/core.k) matches the sfenv rules model, [`rules.k`](https://github.com/padhia/sfenv/tree/main/kcl/rules.k) adds commonly used properties) it also checks the structure before any SQL is generated:
+
+- Misspelled `config` or `options` attributes, wrong value types (e.g., `managed = "yes"`), and invalid choices (e.g., an unknown `drop` value) are rejected when the file is evaluated, instead of producing SQL that fails in Snowflake.
+- Frequently used attributes are typed; databases, schemas, warehouses, roles and users still accept extra pass-through properties.
+- Your own defaults can be layered on top by extending the schemas, as [`examples/defaults.k`](https://github.com/padhia/sfenv/tree/main/examples/defaults.k) and [`examples/example.k`](https://github.com/padhia/sfenv/tree/main/examples/example.k) do.
+
+Using KCL with these schemas is recommended to minimize SQL errors at runtime.
+
+The KCL package (named `sfenv`) is versioned independently of the `sfenv` application and released with `kcl/vX.Y.Z` tags. When an `sfenv` release requires a newer package version, its release notes state the minimum version.
 
 ## Maintaining State
 
-`sfenv` supports differential state generation to synthesize SQL updates relative to a prior baseline configuration state. This functionality is driven by the `--diff` option, which accepts a secondary rules file representing the target baseline state. Combining this capability with a version control system like `git` facilitates automated migration generation.
+`sfenv` generates SQL relative to a prior state of the **same** rules file tracked in `git`, following `git diff` conventions:
 
-### Integrating with Git
+| Command               | Source (previous)  | Target (current)             |
+| --------------------- | ------------------ | ---------------------------- |
+| `sfenv FILE`          | empty              | working directory (or stdin) |
+| `sfenv diff FILE`     | git index (staged) | working directory            |
+| `sfenv diff A FILE`   | commit `A`         | working directory            |
+| `sfenv diff A B FILE` | commit `A`         | commit `B`                   |
 
-When managing rules files within a `git` repository, configuring a dedicated [`difftool`](https://git-scm.com/docs/git-difftool) enables seamless generation of delta SQL scripts between arbitrary commits or branches.
-
-**git configuration**
-
-Execute the following command to register `sfenv` as a custom Git `difftool`:
-
-```sh
-git config difftool.sfenv.cmd 'sfenv $REMOTE --diff $LOCAL'
-```
-
-To generate differential SQL statements reflecting uncommitted working tree changes:
+`A` and `B` accept any commit specification understood by git (e.g. `HEAD~1`, `main`, a tag or a SHA). Examples:
 
 ```sh
-git difftool -yt sfenv my-rules.yaml
+sfenv diff my-rules.yaml                   # unstaged changes
+sfenv diff HEAD my-rules.yaml              # all changes since last commit
+sfenv diff -e PROD prod main my-rules.yaml # align prod with main
+sfenv diff main prod my-rules.yaml         # rollback script
 ```
 
-Primary integration workflows include:
+Notes:
 
-- Generating migration SQL for uncommitted local rule modifications.
-- Generating environment alignment scripts across environment-specific Git branches.
-- Synthesizing rollback DDL/DCL scripts by reversing target and baseline files during invocation.
-
-```sh
-sfenv previous-good.yaml --diff current-bad.yaml
-```
-
-> \[\!WARNING\] **Pkl rules configurations utilizing relative imports are incompatible with `git difftool`.** `git difftool` copies only the target diff file into an isolated temporary directory. Sibling files referenced via relative import paths (e.g., `import "defaults.pkl"`) will be missing, causing evaluation errors. Standard execution modes of `sfenv` are unaffected by this limitation, as local sibling files remain available in the active working directory.
->
-> **Recommended Workaround:** Utilize Pkl's [`modulepath:`](https://pkl-lang.org/main/current/language-reference/index.html#modulepath-uris) resolution protocol instead of explicit relative file paths for any shared modules evaluated under `git difftool`:
-
-```
-import "modulepath:/defaults.pkl"   // instead of: import "defaults.pkl"
-```
-
-> `sfenv` executes `pkl eval --module-path <current-working-directory>` internally, ensuring that `modulepath:` references resolve against the command invocation directory (typically the repository root) rather than the isolated temporary file path. Configurations omitting `modulepath:` imports must avoid relative module imports or utilize standard YAML/JSON formats for compatibility with `git difftool`.
+- `sfenv` must be run from within the git repository; the rules file may be given as a relative or an absolute path and must be inside the repository. Reading rules from standard input is not supported by `diff`. Options such as `-e` must follow the command name (`sfenv diff -e PROD ...`, not `sfenv -e PROD diff ...`).
+- If the rules file does not exist at the source, it is treated as empty (all objects are generated as new). It must exist at the target.
+- `git` must be available in `PATH`. YAML/JSON files are read directly from git. For Pkl files, the repository tree at the requested state is extracted to a temporary directory (using `git read-tree` and `git checkout-index`, leaving the repository untouched) so that relative imports resolve at the same state. The temporary directory is removed on exit.

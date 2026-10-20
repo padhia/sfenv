@@ -1,6 +1,14 @@
 # Rules File
 
-Rules file is a `yaml` or a `json` file that is used by `sfenv` utility to generate Snowflake DDLs and DCLs. A _rules-file_ consists of a configuration to help derive names, object definitions for one more _object types_ (called _sections_), roles and permissions.
+Rules file is a `yaml`, `json`, `pkl`, or `kcl` (`.k`) file that is used by `sfenv` utility to generate Snowflake DDLs and DCLs. A _rules-file_ consists of a configuration to help derive names, object definitions for one more _object types_ (called _sections_), roles and permissions.
+
+The input format is auto-detected by file extension:
+
+- `.yaml` / `.json` — parsed directly by the built-in YAML/JSON parser
+- `.pkl` — evaluated by the `pkl` CLI (`pkl eval --format json`), requires `pkl` on PATH
+- `.k` — evaluated by the `kcl` CLI (`kcl run --format json`), requires `kcl` on PATH
+
+> **Note:** For a more formal, typed definition of the rules file structure, see the KCL schemas in [`kcl/core.k`](./kcl/core.k) (the rules model) and [`kcl/rules.k`](./kcl/rules.k) (adds commonly used properties). They list frequently-used attributes with correct types.
 
 All available _sections_ are documented below. Any section can be omitted when not required.
 
@@ -35,16 +43,16 @@ A YAML/JSON object that controls naming of database objects.
 
 ```yaml
 config:
-  secadm: "RL_{env}_SECADMIN"
-  dbadm: "RL_{env}_SYSADMIN"
-  database: "{db}_{env}"
-  schema: "{sch}"
-  warehouse: "WH_{env}_{wh}"
-  acc_role: "{sch}_{acc}"
-  wacc_role: "_WH_{env}_{wh}_{acc}"
-  fn_role: "RL_{env}_{role}"
-  app_id: "APP_{env}_{app}"
-  cpool: "CP_{env}_{cp}"
+    secadm: "RL_{env}_SECADMIN"
+    dbadm: "RL_{env}_SYSADMIN"
+    database: "{db}_{env}"
+    schema: "{sch}"
+    warehouse: "WH_{env}_{wh}"
+    acc_role: "{sch}_{acc}"
+    wacc_role: "_WH_{env}_{wh}_{acc}"
+    fn_role: "RL_{env}_{role}"
+    app_id: "APP_{env}_{app}"
+    cpool: "CP_{env}_{cp}"
 ```
 
 | template    | Allowed Variables | default       |
@@ -110,15 +118,15 @@ A mapping of account parameter names to values. Put parameters inside `params`, 
 
 ```yaml
 account:
-  params:
-    statement_timeout_in_seconds: 3600
-    timezone: America/New_York
+    params:
+        statement_timeout_in_seconds: 3600
+        timezone: America/New_York
 ```
 
 - Parameter names are emitted as uppercase SQL identifiers and are not expanded using environment naming templates.
 - String parameter values are automatically single-quoted; supply plain strings without adding SQL quotes. Numbers and booleans use their normal property rendering.
-- Without `--diff`, each parameter generates an `ALTER ACCOUNT SET` statement.
-- With `--diff`, new or changed parameters generate `ALTER ACCOUNT SET`; parameters present in the previous rules file but absent from the current one generate `ALTER ACCOUNT UNSET`. Unchanged parameters generate no statements. Omitting the entire section therefore removes all previously declared parameters when diffing.
+- Without the `diff` command, each parameter generates an `ALTER ACCOUNT SET` statement.
+- With the `diff` command, new or changed parameters generate `ALTER ACCOUNT SET`; parameters present in the previous rules file but absent from the current one generate `ALTER ACCOUNT UNSET`. Unchanged parameters generate no statements. Omitting the entire section therefore removes all previously declared parameters when diffing.
 - These statements use the `ACCOUNTADMIN` role. Only specify parameters and values supported by Snowflake at account scope; the rules parser does not validate parameter names against Snowflake.
 - `params` uses the same property value types as other properties, including nested objects and arrays, but null values are not supported. Structured values are only useful where the target parameter accepts the generated syntax.
 
@@ -130,12 +138,12 @@ A YAML/JSON object containing imported share names and their definitions.
 
 ```yaml
 imports:
-  CUST:
-    provider: CUSTP
-    share: DATA_SHR
-    roles:
-      - DBA
-      - DEVLOPER
+    CUST:
+        provider: CUSTP
+        share: DATA_SHR
+        roles:
+            - DBA
+            - DEVLOPER
 ```
 
 An imported share is a YAML/JSON object that has following attributes:
@@ -210,23 +218,23 @@ A schema is a YAML/JSON object that defines a database schema and has following 
 
 ```yaml
 warehouses:
-  LOAD: &wh_defaults
-    warehouse_size: SMALL
-    initially_suspended: true
-    auto_suspend: 300
-    auto_resume: true
-    acc_roles:
-      R:
-        warehouse: [usage]
-      RW:
-        role: [R]
-        warehouse: [operate]
-      RWC:
-        role: [RW]
-        warehouse: [monitor, modify]
-  ETL:
-    <<: *wh_defaults
-    warehouse_size: X-LARGE
+    LOAD: &wh_defaults
+        warehouse_size: SMALL
+        initially_suspended: true
+        auto_suspend: 300
+        auto_resume: true
+        acc_roles:
+            R:
+                warehouse: [usage]
+            RW:
+                role: [R]
+                warehouse: [operate]
+            RWC:
+                role: [RW]
+                warehouse: [monitor, modify]
+    ETL:
+        <<: *wh_defaults
+        warehouse_size: X-LARGE
 ```
 
 A warehouse is a YAML/JSON object with following attributes:
@@ -248,10 +256,10 @@ The former camelCase spellings `minNodes`, `maxNodes`, and `instanceFamily` are 
 
 ```yaml
 compute_pools:
-  ETL:
-    min_nodes: 1
-    max_nodes: 3
-    instance_family: CPU_X64_XS
+    ETL:
+        min_nodes: 1
+        max_nodes: 3
+        instance_family: CPU_X64_XS
 ```
 
 ## access roles
@@ -262,13 +270,13 @@ An access role is created for each schema or a warehouse. An access role is spec
 
 ```yaml
 R:
-  database: [usage, monitor]
-  schema: [usage, monitor]
-  table: [select, references]
-  view: [select]
+    database: [usage, monitor]
+    schema: [usage, monitor]
+    table: [select, references]
+    view: [select]
 RW:
-  role: [R]
-  table: [insert, update, truncate, delete]
+    role: [R]
+    table: [insert, update, truncate, delete]
 ```
 
 The above example when specified for a schema will
@@ -294,26 +302,26 @@ A functional role has following attributes:
 
 ```yaml
 roles:
-  DEVELOPER:
-    users:
-      - JDOE
-    apps:
-      - ETL
-    comment: Developers
-    sys_roles:
-      - SHARED_READER
-      - SHARED_DB.READER
-    acc_roles:
-      EDW.CUSTOMER: R
-      BI.CUSTOMER: R
-      LOAD: R
-      ETL: R
-    env_acc_roles:
-      DEV: &dev_permissions
-        EDW.CUSTOMER: RWC
-        BI.CUSTOMER: RWC
-        LOAD: RW
-      QA: *dev_permissions
+    DEVELOPER:
+        users:
+            - JDOE
+        apps:
+            - ETL
+        comment: Developers
+        sys_roles:
+            - SHARED_READER
+            - SHARED_DB.READER
+        acc_roles:
+            EDW.CUSTOMER: R
+            BI.CUSTOMER: R
+            LOAD: R
+            ETL: R
+        env_acc_roles:
+            DEV: &dev_permissions
+                EDW.CUSTOMER: RWC
+                BI.CUSTOMER: RWC
+                LOAD: RW
+            QA: *dev_permissions
 ```
 
 Note: `users` and `apps` are User IDs to which the role must be granted. Alternatively, User IDs from `users` and `apps` sections can also specify roles to be granted.
@@ -326,14 +334,14 @@ A YAML/JSON object that describes Snowflake user IDs. A user definition can spec
 
 ```yaml
 users:
-  JDOE:
-    default_role: DBA
-    default_warehouse: ETL
-    default_namespace: EDW.CUSTOMER
-    comment: John Doe
-    roles:
-      - DBA
-      - SYSINFO
+    JDOE:
+        default_role: DBA
+        default_warehouse: ETL
+        default_namespace: EDW.CUSTOMER
+        comment: John Doe
+        roles:
+            - DBA
+            - SYSINFO
 ```
 
 A _user_ is an object mapping of name and its properties. Valid properties

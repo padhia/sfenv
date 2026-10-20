@@ -6,7 +6,7 @@ import cats.syntax.all.*
 
 import SqlStmt.*
 
-case class ComputePool(name: Ident, meta: ObjMeta)
+case class ComputePool(name: Ident, application: Option[String], meta: ObjMeta)
 
 object ComputePool:
   val kind = "COMPUTE POOL"
@@ -15,8 +15,10 @@ object ComputePool:
 
   given CDA[ComputePool]:
     extension (obj: ComputePool)
-      def create: Chain[SqlStmt]                   = Chain(obj.meta.ddl(kind.cr))
+      def create: Chain[SqlStmt] =
+        val prefix = obj.application.foldLeft(show"${kind.cr} ${obj.name}")((x, y) => s"$x FOR APPLICATION $y")
+        Chain(obj.meta.ddl(prefix))
       def drop: Chain[SqlStmt]                     = Chain(show"${kind.dr} ${obj.name}".ddl)
       def update(old: ComputePool): Chain[SqlStmt] = obj.meta.ddl(show"${kind.alt} ${obj.name}", old.meta)
       def sameId(other: ComputePool): Boolean      = obj.name == other.name
-      def updatable(old: ComputePool): Boolean     = true
+      def updatable(old: ComputePool): Boolean     = obj.application == old.application
